@@ -148,7 +148,7 @@ export default function EditStudentPage() {
             돌아가기
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-gray-900">
-            {student.profile.name} 수정
+            {student.profile?.name || '학생'} 수정
           </h1>
         </div>
       </div>

@@ -126,7 +126,7 @@ export function ApplicationForm({
               className="w-full justify-between"
             >
               {selectedStudent
-                ? selectedStudent.profile.name
+                ? selectedStudent.profile?.name || '학생'
                 : '학생을 선택해주세요...'}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
