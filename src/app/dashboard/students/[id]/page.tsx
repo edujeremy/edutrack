@@ -138,7 +138,7 @@ async function StudentDetailContent({ params }: PageProps) {
               {student.teacher && (
                 <div>
                   <p className="text-sm text-gray-500">담당선생님</p>
-                  <p className="font-medium text-gray-900">{student.teacher.name}</p>
+                  <p className="font-medium text-gray-900">{student.teacher?.name}</p>
                 </div>
               )}
             </div>

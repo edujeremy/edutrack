@@ -186,7 +186,7 @@ export function StudentTable({ students, teachers }: StudentTableProps) {
             </div>
             {student.teacher && (
               <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                담당선생님: {student.teacher.name}
+                담당선생님: {student.teacher?.name}
               </p>
             )}
           </Link>

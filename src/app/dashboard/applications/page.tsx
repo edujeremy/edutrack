@@ -88,7 +88,7 @@ export default async function ApplicationsPage({ searchParams }: PageProps) {
           app.student_id,
           {
             id: app.student_id,
-            name: app.student.profile.name,
+            name: app.student?.profile?.name || '학생',
           },
         ])
         .entries()
