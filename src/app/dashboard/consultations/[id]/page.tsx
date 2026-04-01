@@ -185,7 +185,7 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
                 편집
               </Button>
             </Link>
-            <Button className="w-full" variant="outline" className="text-red-600">
+            <Button className="w-full text-red-600" variant="outline">
               <Trash2 className="w-4 h-4 mr-2" />
               삭제
             </Button>

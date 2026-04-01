@@ -98,6 +98,8 @@ export default function SignupPage() {
 
         if (profileError) {
           console.error('Profile creation error:', profileError)
+          toast.error('프로필 생성에 실패했습니다. 관리자에게 문의해주세요.')
+          return
         }
       }
 

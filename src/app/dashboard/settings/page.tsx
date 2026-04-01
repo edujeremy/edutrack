@@ -139,14 +139,37 @@ export default function SettingsPage() {
       return
     }
 
+    if (!passwordForm.currentPassword) {
+      setErrorMessage('현재 비밀번호를 입력해주세요.')
+      setSaving(false)
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setErrorMessage('새 비밀번호는 최소 6자 이상이어야 합니다.')
+      setSaving(false)
+      return
+    }
+
     try {
       const supabase = createClient()
 
-      // Verify current password
+      // Verify current password by re-authenticating
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error('사용자를 찾을 수 없습니다.')
+      if (!user || !user.email) throw new Error('사용자를 찾을 수 없습니다.')
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.currentPassword,
+      })
+
+      if (signInError) {
+        setErrorMessage('현재 비밀번호가 올바르지 않습니다.')
+        setSaving(false)
+        return
+      }
 
       // Update password
       const { error } = await supabase.auth.updateUser({

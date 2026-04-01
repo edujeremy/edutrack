@@ -86,6 +86,7 @@ export function ConsultationForm({
         teacher_id: formData.teacher_id,
         topics: [formData.consultation_type],
         notes: formData.content,
+        next_steps: formData.next_steps || null,
         consultation_date: new Date(formData.consultation_date).toISOString(),
       })
 

@@ -72,7 +72,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   let filtered = consultations || []
   if (searchQuery) {
     filtered = filtered.filter((c) =>
-      c.student.profile.name
+      (c.student?.profile?.name || '')
         .toLowerCase()
         .includes(searchQuery.toLowerCase())
     )

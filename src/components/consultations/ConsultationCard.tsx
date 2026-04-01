@@ -12,7 +12,7 @@ import { ko } from 'date-fns/locale'
 interface ConsultationCardProps {
   consultation: Consultation & {
     student: { profile: Profile }
-    teacher: { profile: Profile }
+    teacher: Profile
   }
   onDelete?: (id: string) => void
 }
@@ -45,7 +45,7 @@ export function ConsultationCard({
           <div className="flex-1">
             <p className="text-sm text-gray-600">
               {consultation.student.profile.name} ·{' '}
-              {consultation.teacher.profile.name}
+              {consultation.teacher.name}
             </p>
             <h3 className="font-semibold text-lg mt-1 truncate">
               상담 기록
