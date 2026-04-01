@@ -153,21 +153,21 @@ export default async function TeacherDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard icon={Users} title="내 학생" value={studentCount} variant="default" />
+        <StatsCard icon={<Users className="h-6 w-6" />} title="내 학생" value={studentCount} variant="default" />
         <StatsCard
-          icon={Clock}
+          icon={<Clock className="h-6 w-6" />}
           title="오늘 일정"
           value={enrichedSchedules.length}
           variant="info"
         />
         <StatsCard
-          icon={MessageSquare}
+          icon={<MessageSquare className="h-6 w-6" />}
           title="상담 기록"
           value={enrichedConsultations.length}
           variant="success"
         />
         <StatsCard
-          icon={GraduationCap}
+          icon={<GraduationCap className="h-6 w-6" />}
           title="지원 현황"
           value={(applicationsResult.data || []).length}
           variant="warning"

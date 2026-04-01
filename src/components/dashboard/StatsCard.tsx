@@ -1,10 +1,10 @@
 'use client'
 
-import { LucideIcon } from 'lucide-react'
+import React from 'react'
 import { cn } from '@/lib/utils'
 
 interface StatsCardProps {
-  icon: LucideIcon
+  icon: React.ReactNode
   title: string
   value: string | number
   change?: number
@@ -41,7 +41,7 @@ const variantStyles = {
 }
 
 export function StatsCard({
-  icon: Icon,
+  icon,
   title,
   value,
   change,
@@ -88,7 +88,7 @@ export function StatsCard({
           )}
         </div>
         <div className={cn('rounded-lg bg-white/50 p-3 dark:bg-gray-800/50', styles.icon)}>
-          <Icon className="h-6 w-6" />
+          {icon}
         </div>
       </div>
     </div>

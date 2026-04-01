@@ -214,19 +214,19 @@ export default async function ParentDashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          icon={MessageSquare}
+          icon={<MessageSquare className="h-6 w-6" />}
           title="상담 기록"
           value={enrichedConsultations.length}
           variant="info"
         />
         <StatsCard
-          icon={GraduationCap}
+          icon={<GraduationCap className="h-6 w-6" />}
           title="지원 현황"
           value={(applicationsData.data || []).length}
           variant="warning"
         />
         <StatsCard
-          icon={CreditCard}
+          icon={<CreditCard className="h-6 w-6" />}
           title="결제 현황"
           value={`${completedPayments.length}/${payments.length}`}
           variant="success"

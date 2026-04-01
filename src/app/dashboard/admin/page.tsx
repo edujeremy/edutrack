@@ -199,26 +199,26 @@ export default async function AdminDashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          icon={Users}
+          icon={<Users className="h-6 w-6" />}
           title="전체 학생 수"
           value={totalStudents}
           variant="default"
         />
         <StatsCard
-          icon={MessageSquare}
+          icon={<MessageSquare className="h-6 w-6" />}
           title="활성 상담"
           value={activeConsultations}
           changeLabel="이번 달"
           variant="info"
         />
         <StatsCard
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-6 w-6" />}
           title="이번 달 매출"
           value={`${(paidAmount / 1000000).toFixed(1)}백만`}
           variant="success"
         />
         <StatsCard
-          icon={AlertCircle}
+          icon={<AlertCircle className="h-6 w-6" />}
           title="미결제 건수"
           value={pendingPayments.length}
           change={pendingAmount > 0 ? -Math.ceil((overdueAmount / pendingAmount) * 100) : 0}
