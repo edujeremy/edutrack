@@ -124,16 +124,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo Info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-800">
-              <span className="font-semibold">테스트 계정:</span>
-              <br />
-              이메일: test@example.com
-              <br />
-              비밀번호: password123
-            </p>
-          </div>
+          {/* 프로덕션 환경에서는 테스트 계정 표시 안 함 */}
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { getCurrentUser } from '@/lib/auth'
 import {
   consultationReminderEmail,
   paymentDueEmail,
@@ -7,7 +8,9 @@ import {
   applicationUpdateEmail,
 } from '@/lib/email/templates'
 
-const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null
 
 type EmailTemplate =
   | 'consultation_reminder'
@@ -24,6 +27,23 @@ interface EmailRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // 인증 확인
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      )
+    }
+
+    // Resend API 키 확인
+    if (!resend) {
+      return NextResponse.json(
+        { error: '이메일 서비스가 설정되지 않았습니다.' },
+        { status: 503 }
+      )
+    }
+
     const body: EmailRequest = await request.json()
     const { to, subject, template, data } = body
 
