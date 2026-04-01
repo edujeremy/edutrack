@@ -54,7 +54,7 @@ export const ScheduleList: React.FC<ScheduleListProps> = ({
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
-                      {schedule.teacher.name}
+                      {schedule.teacher?.name || '선생님'}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />

@@ -137,7 +137,7 @@ export default function PaymentDetailPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">결제 상세</h1>
               <p className="text-gray-600 mt-1">
-                {payment.student.name} - {formatKrw(payment.amount)}
+                {payment.student?.name || '미정'} - {formatKrw(payment.amount)}
               </p>
             </div>
             <div className={`px-4 py-2 rounded-lg border ${getStatusColor(payment.status)}`}>
@@ -158,7 +158,7 @@ export default function PaymentDetailPage() {
                   <div>
                     <p className="text-xs text-gray-600">이름</p>
                     <p className="font-medium text-gray-900">
-                      {payment.student.name}
+                      {payment.student?.name || '미정'}
                     </p>
                   </div>
                 </div>
@@ -167,7 +167,7 @@ export default function PaymentDetailPage() {
                   <div>
                     <p className="text-xs text-gray-600">이메일</p>
                     <p className="font-medium text-gray-900">
-                      {payment.student.email}
+                      {payment.student?.email || '-'}
                     </p>
                   </div>
                 </div>

@@ -67,7 +67,7 @@ export function ApplicationTable({
             applications.map((app) => (
               <TableRow key={app.id} className="hover:bg-gray-50">
                 <TableCell className="font-medium">
-                  {app.student.profile.name}
+                  {app.student?.profile?.name || '학생'}
                 </TableCell>
                 <TableCell>{app.university_name}</TableCell>
                 <TableCell>{app.major}</TableCell>

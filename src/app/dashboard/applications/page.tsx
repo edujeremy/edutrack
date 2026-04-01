@@ -67,9 +67,9 @@ export default async function ApplicationsPage({ searchParams }: PageProps) {
   if (searchQuery) {
     filtered = filtered.filter(
       (app) =>
-        app.university_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        app.major.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        app.student.profile.name
+        app.university_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.major?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (app.student?.profile?.name || '')
           .toLowerCase()
           .includes(searchQuery.toLowerCase())
     )
@@ -83,7 +83,8 @@ export default async function ApplicationsPage({ searchParams }: PageProps) {
   const uniqueStudents = Array.from(
     new Map(
       (allApplications.data || [])
-        .map((app) => [
+        .filter((app: any) => app.student?.profile?.name)
+        .map((app: any) => [
           app.student_id,
           {
             id: app.student_id,

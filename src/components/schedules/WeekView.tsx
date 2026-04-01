@@ -158,7 +158,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
                               {schedule.subject}
                             </div>
                             <div className="text-xs truncate">
-                              {schedule.teacher.name}
+                              {schedule.teacher?.name || '선생님'}
                             </div>
                           </div>
                         ))}
