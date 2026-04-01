@@ -92,7 +92,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     new Map(
       (allConsultations.data || [])
         .filter((c: any) => c.teacher?.id)
-        .map((c: any) => [c.teacher.id, c.teacher])
+        .map((c: any) => [c.teacher?.id, c.teacher])
         .entries()
     ).values()
   )
