@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Toaster } from 'react-hot-toast'
+import { ToasterProvider } from '@/components/ui/ToasterProvider'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -20,13 +20,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        <style>{`
-          @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-        `}</style>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+        />
       </head>
-      <body style={{ fontFamily: 'Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+      <body>
         {children}
-        <Toaster position="top-right" />
+        <ToasterProvider />
       </body>
     </html>
   )
