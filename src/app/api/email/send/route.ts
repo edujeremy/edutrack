@@ -7,7 +7,7 @@ import {
   applicationUpdateEmail,
 } from '@/lib/email/templates'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
 
 type EmailTemplate =
   | 'consultation_reminder'
