@@ -53,7 +53,8 @@ export default function DashboardLayout({
     }
 
     loadUserProfile()
-  }, [supabase, router])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
