@@ -95,7 +95,8 @@ export function getDayOfWeekName(dayOfWeek: number): string {
 /**
  * Format time string (HH:mm)
  */
-export function formatTime(time: string): string {
+export function formatTime(time: string | null | undefined): string {
+  if (!time) return '-'
   const [hours, minutes] = time.split(':')
   return `${hours}:${minutes}`
 }

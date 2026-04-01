@@ -44,18 +44,18 @@ export default async function ParentDashboardPage() {
     studentId = studentData?.profile_id || profile.id
   }
 
-  // Get student info
+  // Get student info (maybeSingle: 자녀가 없는 학부모도 크래시 방지)
   const { data: studentProfile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', studentId)
-    .single()
+    .maybeSingle()
 
   const { data: studentRecord } = await supabase
     .from('students')
     .select('*')
     .eq('profile_id', studentId)
-    .single()
+    .maybeSingle()
 
   // Fetch student's data
   const [consultationsData, applicationsData, schedulesData, paymentsData] = await Promise.all([
