@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -13,6 +13,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -26,34 +27,37 @@ export default function DashboardLayout({
         } = await supabase.auth.getUser()
 
         if (!user) {
-          redirect('/login')
+          router.push('/login')
+          return
         }
 
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single()
 
         if (error || !data) {
-          redirect('/login')
+          console.error('Profile load error:', error)
+          router.push('/login')
+          return
         }
 
         setProfile(data as Profile)
       } catch (error) {
         console.error('Error loading profile:', error)
-        redirect('/login')
+        router.push('/login')
       } finally {
         setIsLoading(false)
       }
     }
 
     loadUserProfile()
-  }, [supabase])
+  }, [supabase, router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    redirect('/login')
+    router.push('/login')
   }
 
   if (isLoading) {
