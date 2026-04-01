@@ -6,7 +6,6 @@ export type Database = {
       profiles: {
         Row: {
           id: string
-          user_id: string
           name: string
           email: string
           phone: string | null
@@ -17,7 +16,6 @@ export type Database = {
         }
         Insert: {
           id?: string
-          user_id: string
           name: string
           email: string
           phone?: string | null
@@ -28,7 +26,6 @@ export type Database = {
         }
         Update: {
           id?: string
-          user_id?: string
           name?: string
           email?: string
           phone?: string | null

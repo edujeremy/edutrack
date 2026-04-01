@@ -65,11 +65,10 @@ export default function NewStudentPage() {
         .from('profiles')
         .insert([
           {
-            user_id: user.id,
             name: formData.name,
             email: formData.email,
             phone: formData.phone || null,
-            role: 'student',
+            role: 'student' as const,
           },
         ])
         .select()

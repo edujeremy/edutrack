@@ -60,7 +60,7 @@ async function StudentListContent({ searchParams }: PageProps) {
       created_at,
       updated_at,
       profiles:profile_id (id, name, email, phone, role),
-      teacher:teacher_id (id, name) | teachers!students_teacher_id_fkey (id, name)
+      teacher:profiles!students_teacher_id_fkey (id, name)
     `,
       { count: 'exact' }
     )

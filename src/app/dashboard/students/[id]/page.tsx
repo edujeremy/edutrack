@@ -45,7 +45,7 @@ async function StudentDetailContent({ params }: PageProps) {
       status,
       created_at,
       updated_at,
-      profiles:profile_id (id, user_id, name, email, phone, role),
+      profiles:profile_id (id, name, email, phone, role),
       teacher:teacher_id (id, name)
     `
     )
