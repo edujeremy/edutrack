@@ -1,225 +1,299 @@
-import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { ConsultationCard } from '@/components/consultations/ConsultationCard'
-import { Plus } from 'lucide-react'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+'use client';
 
-interface PageProps {
-  searchParams: Promise<{
-    type?: string
-    teacher?: string
-    search?: string
-    page?: string
-  }>
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { MessageSquare, Loader2, Edit2 } from 'lucide-react';
+
+interface ConsultationRequest {
+  id: string;
+  parent_id: string;
+  student_id: string;
+  subject: string;
+  message: string;
+  preferred_date: string;
+  preferred_time: string;
+  status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
+  admin_notes: string | null;
+  profiles?: { name: string };
+  students?: { name: string };
 }
 
-export default async function ConsultationsPage({ searchParams }: PageProps) {
-  const params = await searchParams
-  const supabase = await createClient()
-  const pageSize = 12
-  const currentPage = parseInt(params.page || '1', 10) || 1
-  const offset = (currentPage - 1) * pageSize
+export default function ConsultationsPage() {
+  const supabase = createClient();
+  const [consultations, setConsultations] = useState<ConsultationRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [newStatus, setNewStatus] = useState<
+    'pending' | 'scheduled' | 'completed' | 'cancelled'
+  >('pending');
 
-  const filterType = params.type || ''
-  const filterTeacher = params.teacher || ''
-  const searchQuery = params.search || ''
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
 
-  // Get authenticated user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const fetchConsultations = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('consultation_requests')
+      .select(`
+        id,
+        parent_id,
+        student_id,
+        subject,
+        message,
+        preferred_date,
+        preferred_time,
+        status,
+        admin_notes,
+        profiles(name),
+        students(name)
+      `)
+      .order('created_at', { ascending: false });
 
-  if (!user) {
-    redirect('/login')
+    if (!error) {
+      setConsultations(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleOpenEdit = (consultation: ConsultationRequest) => {
+    setSelectedId(consultation.id);
+    setEditingNotes(consultation.admin_notes || '');
+    setNewStatus(consultation.status);
+  };
+
+  const handleSave = async () => {
+    if (!selectedId) return;
+
+    const { error } = await supabase
+      .from('consultation_requests')
+      .update({
+        status: newStatus,
+        admin_notes: editingNotes,
+      })
+      .eq('id', selectedId);
+
+    if (!error) {
+      setSelectedId(null);
+      setEditingNotes('');
+      fetchConsultations();
+    } else {
+      alert('저장 중 오류가 발생했습니다');
+    }
+  };
+
+  const getStatusColor = (
+    status: 'pending' | 'scheduled' | 'completed' | 'cancelled',
+  ) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'scheduled':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (
+    status: 'pending' | 'scheduled' | 'completed' | 'cancelled',
+  ) => {
+    switch (status) {
+      case 'pending':
+        return '대기중';
+      case 'scheduled':
+        return '예약됨';
+      case 'completed':
+        return '완료';
+      case 'cancelled':
+        return '취소됨';
+      default:
+        return '';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin text-blue-500" size={40} />
+      </div>
+    );
   }
-
-  // Build query
-  let query = supabase
-    .from('consultations')
-    .select(
-      `
-      *,
-      student:students(id, profile:profiles(id, name, email, avatar_url)),
-      teacher:profiles(id, name, email, avatar_url)
-    `,
-      { count: 'exact' }
-    )
-    .order('consultation_date', { ascending: false })
-
-  if (filterType) {
-    query = query.contains('topics', [filterType])
-  }
-
-  if (searchQuery) {
-    // We'll filter in memory for name search
-  }
-
-  const { data: consultations, count } = await query.range(
-    offset,
-    offset + pageSize - 1
-  )
-
-  // Filter by search query in memory
-  let filtered = consultations || []
-  if (searchQuery) {
-    filtered = filtered.filter((c) =>
-      (c.student?.profile?.name || '')
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    )
-  }
-
-  if (filterTeacher) {
-    filtered = filtered.filter((c) => c.teacher?.id === filterTeacher)
-  }
-
-  // Get unique teachers for filter dropdown
-  const allConsultations = await supabase
-    .from('consultations')
-    .select('teacher:profiles(id, name)')
-    .limit(1000)
-
-  const uniqueTeachers = Array.from(
-    new Map(
-      (allConsultations.data || [])
-        .filter((c: any) => c.teacher?.id)
-        .map((c: any) => [c.teacher?.id, c.teacher])
-        .entries()
-    ).values()
-  )
-
-  const totalPages = Math.ceil((count || 0) / pageSize)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">상담 기록</h1>
-        <Link href="/dashboard/consultations/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            상담 추가
-          </Button>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-gray-900">상담 요청 처리</h1>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-lg border">
-        <div>
-          <label className="text-sm font-medium block mb-2">상담 유형</label>
-          <Select defaultValue={filterType}>
-            <SelectTrigger>
-              <SelectValue placeholder="상담 유형" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">전체</SelectItem>
-              <SelectItem value="초기상담">초기상담</SelectItem>
-              <SelectItem value="정기상담">정기상담</SelectItem>
-              <SelectItem value="긴급상담">긴급상담</SelectItem>
-              <SelectItem value="입시전략">입시전략</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Consultations List */}
+        <div className="space-y-4">
+          {consultations.map((consultation) => (
+            <div key={consultation.id} className="bg-white p-6 rounded-lg shadow">
+              {selectedId === consultation.id ? (
+                // Edit Mode
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">보호자</p>
+                      <p className="font-medium">
+                        {(consultation.profiles as any)?.name || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">학생</p>
+                      <p className="font-medium">
+                        {(consultation.students as any)?.name || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">희망 날짜</p>
+                      <p className="font-medium">{consultation.preferred_date}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">희망 시간</p>
+                      <p className="font-medium">{consultation.preferred_time}</p>
+                    </div>
+                  </div>
 
-        <div>
-          <label className="text-sm font-medium block mb-2">선생님</label>
-          <Select defaultValue={filterTeacher}>
-            <SelectTrigger>
-              <SelectValue placeholder="선생님" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">전체</SelectItem>
-              {uniqueTeachers.map((teacher) => (
-                <SelectItem key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">주제</p>
+                    <p className="font-medium">{consultation.subject}</p>
+                  </div>
 
-        <div>
-          <label className="text-sm font-medium block mb-2">학생 검색</label>
-          <Input
-            placeholder="학생명으로 검색..."
-            defaultValue={searchQuery}
-            type="search"
-          />
-        </div>
-      </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">메시지</p>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                      {consultation.message}
+                    </p>
+                  </div>
 
-      {/* Consultation List */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">상담 기록이 없습니다.</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((consultation) => (
-              <ConsultationCard
-                key={consultation.id}
-                consultation={consultation}
-              />
-            ))}
-          </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">상태</label>
+                    <select
+                      value={newStatus}
+                      onChange={(e) =>
+                        setNewStatus(
+                          e.target.value as
+                            | 'pending'
+                            | 'scheduled'
+                            | 'completed'
+                            | 'cancelled',
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="pending">대기중</option>
+                      <option value="scheduled">예약됨</option>
+                      <option value="completed">완료</option>
+                      <option value="cancelled">취소됨</option>
+                    </select>
+                  </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 py-6">
-              {currentPage > 1 && (
-                <Link
-                  href={`/dashboard/consultations?page=${currentPage - 1}${
-                    filterType ? `&type=${filterType}` : ''
-                  }${filterTeacher ? `&teacher=${filterTeacher}` : ''}${
-                    searchQuery ? `&search=${searchQuery}` : ''
-                  }`}
-                >
-                  <Button variant="outline">이전</Button>
-                </Link>
-              )}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      관리자 메모
+                    </label>
+                    <textarea
+                      value={editingNotes}
+                      onChange={(e) => setEditingNotes(e.target.value)}
+                      placeholder="상담 결과, 조치 사항 등을 기록하세요"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      rows={4}
+                    />
+                  </div>
 
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <Link
-                  key={i + 1}
-                  href={`/dashboard/consultations?page=${i + 1}${
-                    filterType ? `&type=${filterType}` : ''
-                  }${filterTeacher ? `&teacher=${filterTeacher}` : ''}${
-                    searchQuery ? `&search=${searchQuery}` : ''
-                  }`}
-                >
-                  <Button
-                    variant={currentPage === i + 1 ? 'primary' : 'outline'}
-                    size="sm"
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setSelectedId(null)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      저장
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // View Mode
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                      <div>
+                        <p className="text-sm text-gray-600">보호자</p>
+                        <p className="font-medium">
+                          {(consultation.profiles as any)?.name || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">학생</p>
+                        <p className="font-medium">
+                          {(consultation.students as any)?.name || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">희망 날짜/시간</p>
+                        <p className="font-medium">
+                          {consultation.preferred_date} {consultation.preferred_time}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">상태</p>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            consultation.status,
+                          )}`}
+                        >
+                          {getStatusLabel(consultation.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">주제</p>
+                    <p className="font-medium">{consultation.subject}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">메시지</p>
+                    <p className="text-sm text-gray-700">{consultation.message}</p>
+                  </div>
+
+                  {consultation.admin_notes && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">관리자 메모</p>
+                      <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded">
+                        {consultation.admin_notes}
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => handleOpenEdit(consultation)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    {i + 1}
-                  </Button>
-                </Link>
-              ))}
-
-              {currentPage < totalPages && (
-                <Link
-                  href={`/dashboard/consultations?page=${currentPage + 1}${
-                    filterType ? `&type=${filterType}` : ''
-                  }${filterTeacher ? `&teacher=${filterTeacher}` : ''}${
-                    searchQuery ? `&search=${searchQuery}` : ''
-                  }`}
-                >
-                  <Button variant="outline">다음</Button>
-                </Link>
+                    <Edit2 size={16} />
+                    처리
+                  </button>
+                </div>
               )}
             </div>
-          )}
-        </>
-      )}
+          ))}
+        </div>
+
+        <div className="mt-4 text-sm text-gray-600">
+          총 {consultations.length}개 상담 요청
+        </div>
+      </div>
     </div>
-  )
+  );
 }

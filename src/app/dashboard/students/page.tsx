@@ -1,208 +1,430 @@
-import { Suspense } from 'react'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { StudentFilters } from '@/components/students/StudentFilters'
-import { StudentTable } from '@/components/students/StudentTable'
-import { Plus } from 'lucide-react'
-import Link from 'next/link'
+'use client';
 
-interface PageProps {
-  searchParams: Promise<{
-    search?: string
-    status?: string
-    teacher?: string
-    page?: string
-  }>
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
+
+interface Student {
+  id: string;
+  name: string;
+  school: string;
+  grade: number;
+  parent_name: string;
+  parent_phone: string;
+  parent_email: string;
+  status: 'active' | 'inactive';
+  notes: string;
 }
 
-const ITEMS_PER_PAGE = 10
+interface FormData {
+  name: string;
+  school: string;
+  grade: string;
+  parent_name: string;
+  parent_phone: string;
+  parent_email: string;
+}
 
-async function StudentListContent({ searchParams }: PageProps) {
-  const params = await searchParams
-  const supabase = await createClient()
+export default function StudentsPage() {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    school: '',
+    grade: '',
+    parent_name: '',
+    parent_phone: '',
+    parent_email: '',
+  });
 
-  // Get current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        setLoading(true);
+        const { data, error: fetchError } = await supabase
+          .from('students')
+          .select('*')
+          .order('name');
 
-  if (!user) {
-    redirect('/login')
+        if (fetchError) throw fetchError;
+        setStudents(data || []);
+      } catch (err) {
+        setError('학생 목록을 불러올 수 없습니다');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudents();
+  }, [supabase]);
+
+  const filteredStudents = filter === 'all'
+    ? students
+    : students.filter(s => s.status === filter);
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      school: '',
+      grade: '',
+      parent_name: '',
+      parent_phone: '',
+      parent_email: '',
+    });
+    setEditingId(null);
+  };
+
+  const handleAddClick = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  const handleEditClick = (student: Student) => {
+    setFormData({
+      name: student.name,
+      school: student.school,
+      grade: String(student.grade),
+      parent_name: student.parent_name,
+      parent_phone: student.parent_phone,
+      parent_email: student.parent_email,
+    });
+    setEditingId(student.id);
+    setShowAddModal(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (!formData.name || !formData.parent_name || !formData.parent_email) {
+        setError('필수 정보를 입력해주세요');
+        return;
+      }
+
+      setProcessingId(editingId || 'new');
+
+      if (editingId) {
+        // Update existing student
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({
+            name: formData.name,
+            school: formData.school,
+            grade: parseInt(formData.grade) || 0,
+            parent_name: formData.parent_name,
+            parent_phone: formData.parent_phone,
+            parent_email: formData.parent_email,
+          })
+          .eq('id', editingId);
+
+        if (updateError) throw updateError;
+
+        setStudents(prev =>
+          prev.map(s =>
+            s.id === editingId
+              ? {
+                  ...s,
+                  name: formData.name,
+                  school: formData.school,
+                  grade: parseInt(formData.grade) || 0,
+                  parent_name: formData.parent_name,
+                  parent_phone: formData.parent_phone,
+                  parent_email: formData.parent_email,
+                }
+              : s
+          )
+        );
+      } else {
+        // Create new student
+        const { data: newStudent, error: insertError } = await supabase
+          .from('students')
+          .insert([
+            {
+              name: formData.name,
+              school: formData.school,
+              grade: parseInt(formData.grade) || 0,
+              parent_name: formData.parent_name,
+              parent_phone: formData.parent_phone,
+              parent_email: formData.parent_email,
+              status: 'active',
+            },
+          ])
+          .select();
+
+        if (insertError) throw insertError;
+        if (newStudent) {
+          setStudents(prev => [...prev, ...newStudent]);
+        }
+      }
+
+      setShowAddModal(false);
+      resetForm();
+    } catch (err) {
+      setError('저장 중 오류가 발생했습니다');
+      console.error(err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+
+    try {
+      setProcessingId(id);
+      const { error: deleteError } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+      setStudents(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      setError('삭제 중 오류가 발생했습니다');
+      console.error(err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
   }
-
-  // Get user profile
-  const { data: userProfile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  // Fetch teachers for filter dropdown
-  const { data: teachers } = await supabase
-    .from('profiles')
-    .select('id, name')
-    .in('role', ['teacher', 'admin'])
-
-  // Build query with filters
-  let query = supabase
-    .from('students')
-    .select(
-      `
-      id,
-      profile_id,
-      school,
-      grade,
-      parent_name,
-      parent_phone,
-      parent_email,
-      enrollment_date,
-      status,
-      created_at,
-      updated_at,
-      profiles:profile_id (id, name, email, phone, role),
-      teacher:profiles!students_teacher_id_fkey (id, name)
-    `,
-      { count: 'exact' }
-    )
-
-  // Apply filters
-  if (params.search) {
-    const searchTerm = params.search.toLowerCase()
-    query = query.or(
-      `profiles.name.ilike.%${searchTerm}%,school.ilike.%${searchTerm}%`
-    )
-  }
-
-  if (params.status) {
-    query = query.eq('status', params.status)
-  }
-
-  if (params.teacher) {
-    query = query.eq('teacher_id', params.teacher)
-  }
-
-  // Get paginated results
-  const page = parseInt(params.page || '1', 10)
-  const from = (page - 1) * ITEMS_PER_PAGE
-  const to = from + ITEMS_PER_PAGE - 1
-
-  const { data: students, count, error } = await query
-    .order('enrollment_date', { ascending: false })
-    .range(from, to)
-
-  if (error) {
-    console.error('Error fetching students:', error)
-    throw new Error('학생 목록을 불러올 수 없습니다.')
-  }
-
-  // Create teacher map for easy lookup
-  const teacherMap = new Map<string, string>()
-  ;(teachers || []).forEach((teacher: any) => {
-    teacherMap.set(teacher.id, teacher.name)
-  })
-
-  // Format students data
-  const formattedStudents = (students || []).map((student: any) => ({
-    ...student,
-    profile: student.profiles,
-    teacher: student.teacher,
-  }))
-
-  const totalPages = Math.ceil((count || 0) / ITEMS_PER_PAGE)
-  const canAddStudent = ['admin', 'manager', 'teacher'].includes(
-    userProfile?.role || ''
-  )
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h1 className="text-3xl font-bold text-gray-900">학생 관리</h1>
-        {canAddStudent && (
-          <Link
-            href="/dashboard/students/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">학생 관리</h1>
+          <p className="text-gray-600 mt-2">모든 학생 정보를 관리합니다</p>
+        </div>
+        <button
+          onClick={handleAddClick}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
+        >
+          <Plus className="w-4 h-4" />
+          학생 추가
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Filter Tabs */}
+      <div className="flex gap-4 mb-6 border-b border-gray-200">
+        {(['all', 'active', 'inactive'] as const).map(status => (
+          <button
+            key={status}
+            onClick={() => setFilter(status)}
+            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+              filter === status
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
           >
-            <Plus className="h-5 w-5" />
-            학생 추가
-          </Link>
+            {status === 'all' ? '전체' : status === 'active' ? '활성' : '비활성'}
+          </button>
+        ))}
+      </div>
+
+      {/* Students Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {filteredStudents.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">이름</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학교</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학년</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학부모</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">연락처</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">상태</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map(student => (
+                  <tr key={student.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{student.school}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{student.grade}학년</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{student.parent_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{student.parent_phone}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                        student.status === 'active'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {student.status === 'active' ? '활성' : '비활성'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(student)}
+                          disabled={processingId === student.id}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:text-gray-400"
+                          title="수정"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(student.id)}
+                          disabled={processingId === student.id}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded disabled:text-gray-400"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-12 text-center">
+            <p className="text-gray-500 text-lg">학생이 없습니다</p>
+          </div>
         )}
       </div>
 
-      {/* Filters */}
-      <StudentFilters teachers={teachers || []} />
-
-      {/* Table */}
-      <StudentTable students={formattedStudents} teachers={teacherMap} />
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            총 {count || 0}명 중 {from + 1}-{Math.min(to + 1, count || 0)}명 표시
-          </p>
-          <div className="flex gap-2">
-            {page > 1 && (
-              <Link
-                href={`?${new URLSearchParams({
-                  ...params,
-                  page: String(page - 1),
-                }).toString()}`}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                {editingId ? '학생 정보 수정' : '학생 추가'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
+                className="text-gray-500 hover:text-gray-700"
               >
-                이전
-              </Link>
-            )}
-            <div className="flex items-center gap-2">
-              {Array.from({ length: totalPages }).map((_, i) => {
-                const pageNum = i + 1
-                return (
-                  <Link
-                    key={pageNum}
-                    href={`?${new URLSearchParams({
-                      ...params,
-                      page: String(pageNum),
-                    }).toString()}`}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      page === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </Link>
-                )
-              })}
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            {page < totalPages && (
-              <Link
-                href={`?${new URLSearchParams({
-                  ...params,
-                  page: String(page + 1),
-                }).toString()}`}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  학생 이름 *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="학생 이름"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    학교
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.school}
+                    onChange={(e) => setFormData(prev => ({ ...prev, school: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="학교"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    학년
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.grade}
+                    onChange={(e) => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="학년"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  학부모 이름 *
+                </label>
+                <input
+                  type="text"
+                  value={formData.parent_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, parent_name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="학부모 이름"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  연락처
+                </label>
+                <input
+                  type="tel"
+                  value={formData.parent_phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, parent_phone: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="010-1234-5678"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이메일 *
+                </label>
+                <input
+                  type="email"
+                  value={formData.parent_email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, parent_email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="example@email.com"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
               >
-                다음
-              </Link>
-            )}
+                취소
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={processingId === (editingId || 'new')}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {processingId === (editingId || 'new') ? '저장 중...' : '저장'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
-  )
-}
-
-export default function StudentListPage(props: PageProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="space-y-4">
-          <div className="h-10 w-40 animate-pulse rounded-lg bg-gray-200" />
-          <div className="h-96 animate-pulse rounded-lg bg-gray-200" />
-        </div>
-      }
-    >
-      <StudentListContent {...props} />
-    </Suspense>
-  )
+  );
 }

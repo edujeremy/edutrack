@@ -76,12 +76,36 @@ export function getStatusColor(
 export function getRoleLabel(role: Role): string {
   const roleLabels: Record<Role, string> = {
     admin: '관리자',
-    manager: '원장',
-    teacher: '강사',
-    student: '학생',
+    teacher: '선생님',
     parent: '학부모',
   }
   return roleLabels[role] || role
+}
+
+/**
+ * Get attendance status label in Korean
+ */
+export function getAttendanceLabel(status: string): string {
+  const labels: Record<string, string> = {
+    scheduled: '예정',
+    attended: '출석',
+    absent: '결석',
+    cancelled: '취소',
+  }
+  return labels[status] || status
+}
+
+/**
+ * Get comment status label in Korean
+ */
+export function getCommentStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    draft: '작성중',
+    submitted: '제출됨',
+    approved: '승인됨',
+    rejected: '반려됨',
+  }
+  return labels[status] || status
 }
 
 /**
