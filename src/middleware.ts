@@ -56,7 +56,11 @@ export async function middleware(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Middleware error:', error)
-    // Allow request to proceed on error to prevent app crashes
+    const { pathname } = request.nextUrl
+    // On error, only allow public routes — block protected routes
+    if (!publicRoutes.includes(pathname)) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
     return NextResponse.next()
   }
 }

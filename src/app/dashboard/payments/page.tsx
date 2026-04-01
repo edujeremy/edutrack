@@ -20,6 +20,7 @@ export default async function PaymentsPage() {
     `
     )
     .order('created_at', { ascending: false })
+    .limit(500)
 
   const typedPayments =
     payments?.map((p: any) => ({

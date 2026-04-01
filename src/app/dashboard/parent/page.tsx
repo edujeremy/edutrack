@@ -25,7 +25,7 @@ export default async function ParentDashboardPage() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile || (profile.role !== 'parent' && profile.role !== 'student')) {
     redirect('/dashboard')

@@ -45,6 +45,11 @@ export function StudentTable({ students, teachers }: StudentTableProps) {
       bValue = (b as any)[sortConfig.key]
     }
 
+    // Use localeCompare for proper Korean (한글) sorting
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      const cmp = aValue.localeCompare(bValue, 'ko-KR')
+      return sortConfig.direction === 'asc' ? cmp : -cmp
+    }
     if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
     return 0

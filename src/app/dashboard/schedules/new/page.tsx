@@ -42,7 +42,7 @@ export default function NewSchedulePage() {
           student_id: formData.student_id,
           teacher_id: formData.teacher_id,
           subject: formData.subject,
-          day_of_week: parseInt(formData.day_of_week),
+          day_of_week: !isNaN(parseInt(formData.day_of_week)) ? parseInt(formData.day_of_week) : 0,
           start_time: formData.start_time,
           end_time: formData.end_time,
           room: formData.room || null,

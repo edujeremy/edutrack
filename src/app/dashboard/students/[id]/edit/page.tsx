@@ -32,9 +32,12 @@ export default function EditStudentPage() {
           `
           )
           .eq('id', studentId)
-          .single()
+          .maybeSingle()
 
-        if (studentError) throw studentError
+        if (studentError || !studentData) {
+          setError('학생을 찾을 수 없습니다.')
+          return
+        }
 
         setStudent(studentData)
 

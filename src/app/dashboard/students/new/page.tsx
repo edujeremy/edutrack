@@ -84,7 +84,7 @@ export default function NewStudentPage() {
         {
           profile_id: profile.id,
           school: formData.school || null,
-          grade: formData.grade ? parseInt(formData.grade) : null,
+          grade: formData.grade && !isNaN(parseInt(formData.grade)) ? parseInt(formData.grade) : null,
           parent_name: formData.parent_name || null,
           parent_phone: formData.parent_phone || null,
           parent_email: formData.parent_email || null,

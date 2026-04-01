@@ -23,7 +23,7 @@ export default function EditPaymentPage() {
         .from('payments')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       const { data: studentsData } = await supabase
         .from('profiles')

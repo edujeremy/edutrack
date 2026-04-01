@@ -31,7 +31,7 @@ export default async function AdminDashboardPage() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
     redirect('/dashboard')

@@ -24,7 +24,7 @@ export default async function TeacherDashboardPage() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile || profile.role !== 'teacher') {
     redirect('/dashboard')

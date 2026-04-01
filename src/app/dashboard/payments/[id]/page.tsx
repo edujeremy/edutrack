@@ -62,7 +62,7 @@ export default function PaymentDetailPage() {
         `
         )
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       setPayment(data as PaymentWithStudent)
       setIsLoading(false)

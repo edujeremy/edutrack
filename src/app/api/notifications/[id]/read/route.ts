@@ -20,7 +20,7 @@ export async function PATCH(
       .from('notifications')
       .select('user_id')
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
     if (fetchError || !notification || notification.user_id !== user.id) {
       return NextResponse.json(

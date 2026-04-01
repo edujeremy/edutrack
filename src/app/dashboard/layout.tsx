@@ -35,7 +35,7 @@ export default function DashboardLayout({
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (error || !data) {
           console.error('Profile load error:', error)

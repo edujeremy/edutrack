@@ -35,7 +35,7 @@ async function StudentListContent({ searchParams }: PageProps) {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   // Fetch teachers for filter dropdown
   const { data: teachers } = await supabase

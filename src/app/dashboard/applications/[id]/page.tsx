@@ -49,7 +49,7 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
     `
     )
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (!application) {
     notFound()

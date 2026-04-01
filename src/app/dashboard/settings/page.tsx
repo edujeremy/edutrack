@@ -73,9 +73,12 @@ export default function SettingsPage() {
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
-        if (error) throw error
+        if (error || !profileData) {
+          setErrorMessage('프로필을 불러올 수 없습니다.')
+          return
+        }
 
         setProfile(profileData)
         setFormData({
@@ -84,9 +87,13 @@ export default function SettingsPage() {
         })
 
         // Load notification preferences from localStorage
-        const savedPrefs = localStorage.getItem('notificationPrefs')
-        if (savedPrefs) {
-          setNotificationPrefs(JSON.parse(savedPrefs))
+        try {
+          const savedPrefs = localStorage.getItem('notificationPrefs')
+          if (savedPrefs) {
+            setNotificationPrefs(JSON.parse(savedPrefs))
+          }
+        } catch {
+          // Corrupted localStorage data - use defaults
         }
       } catch (error) {
         console.error('Error loading profile:', error)
@@ -199,7 +206,11 @@ export default function SettingsPage() {
       [key]: !notificationPrefs[key],
     }
     setNotificationPrefs(updated)
-    localStorage.setItem('notificationPrefs', JSON.stringify(updated))
+    try {
+      localStorage.setItem('notificationPrefs', JSON.stringify(updated))
+    } catch {
+      // localStorage unavailable or full
+    }
     setSuccessMessage('알림 설정이 저장되었습니다.')
     setTimeout(() => setSuccessMessage(''), 3000)
   }

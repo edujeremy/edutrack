@@ -50,7 +50,7 @@ async function StudentDetailContent({ params }: PageProps) {
     `
     )
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (studentError || !student) {
     notFound()
@@ -89,7 +89,7 @@ async function StudentDetailContent({ params }: PageProps) {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   const canEdit = ['admin', 'manager'].includes(userProfile?.role || '')
 

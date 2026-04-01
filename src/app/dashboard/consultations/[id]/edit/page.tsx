@@ -39,7 +39,7 @@ export default function EditConsultationPage() {
           `
           )
           .eq('id', id)
-          .single()
+          .maybeSingle()
 
         setConsultation(consultationData)
 

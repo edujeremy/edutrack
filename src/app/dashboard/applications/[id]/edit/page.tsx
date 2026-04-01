@@ -37,7 +37,7 @@ export default function EditApplicationPage() {
           `
           )
           .eq('id', id)
-          .single()
+          .maybeSingle()
 
         setApplication(applicationData)
 

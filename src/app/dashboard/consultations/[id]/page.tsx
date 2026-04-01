@@ -41,7 +41,7 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
     `
     )
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (!consultation) {
     notFound()
