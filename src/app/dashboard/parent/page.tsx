@@ -17,7 +17,7 @@ export default async function ParentDashboardPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login')
+    redirect('/login')
   }
 
   // Get user profile
@@ -130,7 +130,7 @@ export default async function ParentDashboardPage() {
           .from('profiles')
           .select('id, name')
           .in('id', teacherIds)
-      : Promise.resolve({ data: [] })
+      : { data: [] as { id: string; name: string }[] }
 
   const teacherMap = new Map(
     (teacherDetails || []).map((t: { id: string; name: string }) => [t.id, t.name])
@@ -150,7 +150,7 @@ export default async function ParentDashboardPage() {
           .from('profiles')
           .select('id, name')
           .in('id', scheduleTeacherIds)
-      : Promise.resolve({ data: [] })
+      : { data: [] as { id: string; name: string }[] }
 
   const scheduleTeacherMap = new Map(
     (scheduleTeachers || []).map((t: { id: string; name: string }) => [t.id, t.name])
