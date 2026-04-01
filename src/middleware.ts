@@ -1,32 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { createServerClient } from '@supabase/ssr'
 
 const publicRoutes = ['/', '/login', '/signup']
 
 export async function middleware(request: NextRequest) {
-  // Refresh session
-  let response = await updateSession(request)
-
   const { pathname } = request.nextUrl
 
-  // Try to get the user session
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return response
+    return NextResponse.next()
   }
 
-  const authCookie = request.cookies.get('sb-auth-token')
-  const isAuthenticated = !!authCookie
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Redirect authenticated users away from login/signup
-  if (isAuthenticated && (pathname === '/login' || pathname === '/signup')) {
+  if (user && (pathname === '/login' || pathname === '/signup')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // Redirect unauthenticated users to login (except public routes)
-  if (!isAuthenticated && !publicRoutes.includes(pathname)) {
+  if (!user && !publicRoutes.includes(pathname)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
