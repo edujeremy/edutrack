@@ -32,7 +32,7 @@ const navItems: Record<Role, Array<{ icon: React.ReactNode; label: string; href:
   admin: [
     { icon: <LayoutDashboard size={20} />, label: '대시보드', href: '/dashboard' },
     { icon: <Users size={20} />, label: '학생관리', href: '/dashboard/students' },
-    { icon: <UserCheck size={20} />, label: '선생님관리', href: '/dashboard/teachers' },
+    { icon: <UserCheck size={20} />, label: '선생님관리', href: '/dashboard/admin' },
     { icon: <MessageSquare size={20} />, label: '상담기록', href: '/dashboard/consultations' },
     { icon: <BookOpen size={20} />, label: '지원현황', href: '/dashboard/applications' },
     { icon: <Calendar size={20} />, label: '수업일정', href: '/dashboard/schedules' },
@@ -48,14 +48,14 @@ const navItems: Record<Role, Array<{ icon: React.ReactNode; label: string; href:
   ],
   teacher: [
     { icon: <LayoutDashboard size={20} />, label: '대시보드', href: '/dashboard' },
-    { icon: <Users size={20} />, label: '내 학생', href: '/dashboard/my-students' },
+    { icon: <Users size={20} />, label: '내 학생', href: '/dashboard/students' },
     { icon: <MessageSquare size={20} />, label: '상담기록', href: '/dashboard/consultations' },
     { icon: <BookOpen size={20} />, label: '지원현황', href: '/dashboard/applications' },
     { icon: <Calendar size={20} />, label: '수업일정', href: '/dashboard/schedules' },
   ],
   parent: [
     { icon: <LayoutDashboard size={20} />, label: '대시보드', href: '/dashboard' },
-    { icon: <Users size={20} />, label: '내 자녀', href: '/dashboard/my-child' },
+    { icon: <Users size={20} />, label: '내 자녀', href: '/dashboard/parent' },
     { icon: <MessageSquare size={20} />, label: '상담기록', href: '/dashboard/consultations' },
     { icon: <BookOpen size={20} />, label: '지원현황', href: '/dashboard/applications' },
   ],

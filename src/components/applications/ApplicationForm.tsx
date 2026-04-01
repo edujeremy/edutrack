@@ -157,7 +157,7 @@ export function ApplicationForm({
                           : 'opacity-0'
                       )}
                     />
-                    {student.profile.name}
+                    {student.profile?.name || '학생'}
                   </CommandItem>
                 ))}
               </CommandGroup>

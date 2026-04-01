@@ -48,7 +48,7 @@ export function StudentDetailTabs({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <p className="text-sm text-gray-500">이름</p>
-          <p className="text-base font-medium text-gray-900">{student.profile.name}</p>
+          <p className="text-base font-medium text-gray-900">{student.profile?.name || '학생'}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500">학교</p>
@@ -69,13 +69,13 @@ export function StudentDetailTabs({
         <div>
           <p className="text-sm text-gray-500">이메일</p>
           <p className="text-base font-medium text-gray-900">
-            {student.profile.email || '-'}
+            {student.profile?.email || '-'}
           </p>
         </div>
         <div>
           <p className="text-sm text-gray-500">연락처</p>
           <p className="text-base font-medium text-gray-900">
-            {student.profile.phone || '-'}
+            {student.profile?.phone || '-'}
           </p>
         </div>
         <div>

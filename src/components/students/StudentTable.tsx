@@ -116,7 +116,7 @@ export function StudentTable({ students, teachers }: StudentTableProps) {
                 className="border-b border-gray-200 transition-colors hover:bg-gray-50"
               >
                 <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                  {student.profile.name}
+                  {student.profile?.name || '학생'}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600">
                   {student.school || '-'}
@@ -165,7 +165,7 @@ export function StudentTable({ students, teachers }: StudentTableProps) {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{student.profile.name}</h3>
+                <h3 className="font-semibold text-gray-900">{student.profile?.name || '학생'}</h3>
                 <p className="mt-1 text-sm text-gray-600">{student.school || '-'}</p>
                 <div className="mt-2 flex items-center gap-2">
                   {student.grade && (

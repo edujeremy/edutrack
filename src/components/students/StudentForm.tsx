@@ -25,9 +25,9 @@ export function StudentForm({
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
-    name: initialData?.profile.name || '',
-    email: initialData?.profile.email || '',
-    phone: initialData?.profile.phone || '',
+    name: initialData?.profile?.name || '',
+    email: initialData?.profile?.email || '',
+    phone: initialData?.profile?.phone || '',
     school: initialData?.school || '',
     grade: initialData?.grade || '',
     parent_name: initialData?.parent_name || '',
