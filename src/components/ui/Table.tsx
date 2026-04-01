@@ -76,6 +76,10 @@ export const TableHeaderCell = React.forwardRef<
 ))
 TableHeaderCell.displayName = 'TableHeaderCell'
 
+// Alias for backward compatibility
+export const TableHead = TableHeaderCell
+export const TableHeader = TableHead
+
 export const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   TableBodyProps
