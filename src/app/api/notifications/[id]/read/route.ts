@@ -39,7 +39,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data[0])
+    return NextResponse.json(data?.[0] ?? {})
   } catch (error) {
     return NextResponse.json(
       { error: '알림을 업데이트하는 중 오류가 발생했습니다.' },

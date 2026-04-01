@@ -479,7 +479,7 @@ export default function SettingsPage() {
 
           <div className="space-y-3">
             <a
-              href="/dashboard/admin/teachers"
+              href="/dashboard/admin"
               className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -494,7 +494,7 @@ export default function SettingsPage() {
             </a>
 
             <a
-              href="/dashboard/admin/parents"
+              href="/dashboard/admin"
               className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data[0], { status: 201 })
+    return NextResponse.json(data?.[0] ?? {}, { status: 201 })
   } catch (error) {
     return NextResponse.json(
       { error: '알림을 생성하는 중 오류가 발생했습니다.' },
