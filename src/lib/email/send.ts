@@ -19,10 +19,16 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
     })
 
     if (!response.ok) {
-      const error = await response.json()
+      let errorMessage = '이메일 발송에 실패했습니다.'
+      try {
+        const error = await response.json()
+        errorMessage = error.error || errorMessage
+      } catch {
+        // If response body is not JSON, use default error message
+      }
       return {
         success: false,
-        error: error.error || '이메일 발송에 실패했습니다.',
+        error: errorMessage,
       }
     }
 

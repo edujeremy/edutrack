@@ -87,7 +87,7 @@ export function NotificationList({
       }
     }
 
-    if (notification.action_url) {
+    if (notification.action_url && typeof notification.action_url === 'string') {
       router.push(notification.action_url)
     }
   }

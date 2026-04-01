@@ -46,13 +46,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, message, type = 'info', action_url } = body
+    let { title, message, type = 'info', action_url } = body
 
     if (!title || !message) {
       return NextResponse.json(
         { error: '제목과 메시지는 필수입니다.' },
         { status: 400 }
       )
+    }
+
+    // Validate action_url: only allow internal routes (starting with /)
+    if (action_url) {
+      if (action_url.includes('http://') || action_url.includes('https://')) {
+        // Strip external URLs, only keep the path if any
+        const url = new URL(action_url, 'http://localhost')
+        action_url = url.pathname
+      }
+      if (!action_url.startsWith('/')) {
+        action_url = null
+      }
     }
 
     const supabase = await createClient()

@@ -13,8 +13,15 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
  * Format date to Korean locale
  */
 export function formatDate(date: string | Date, formatStr: string = 'PPP'): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-  return format(dateObj, formatStr, { locale: ko })
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid date'
+    }
+    return format(dateObj, formatStr, { locale: ko })
+  } catch (error) {
+    return 'Invalid date'
+  }
 }
 
 /**
@@ -142,5 +149,6 @@ export function isValidEmail(email: string): boolean {
  */
 export function isValidPhoneNumber(phone: string): boolean {
   const phoneRegex = /^(\+82|0)([0-9]{9,10})$/
-  return phoneRegex.test(phone.replace(/-/g, ''))
+  // Remove both spaces and hyphens before validation
+  return phoneRegex.test(phone.replace(/[\s-]/g, ''))
 }

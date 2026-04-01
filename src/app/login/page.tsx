@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     if (!email) {
       newErrors.email = '이메일을 입력해주세요'
-    } else if (!email.includes('@')) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = '유효한 이메일을 입력해주세요'
     }
 
@@ -75,7 +75,7 @@ export default function LoginPage() {
       })
 
       if (error) {
-        toast.error(error.message || '로그인에 실패했습니다')
+        toast.error('이메일 또는 비밀번호를 확인해주세요.')
         return
       }
 

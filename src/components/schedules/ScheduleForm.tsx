@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Schedule, Profile } from '@/lib/types'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -32,6 +33,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
   onSubmit,
   isLoading = false,
 }) => {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     student_id: initialData?.student_id || '',
     teacher_id: initialData?.teacher_id || '',
@@ -196,7 +198,7 @@ export const ScheduleForm: React.FC<ScheduleFormProps> = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="secondary">
+            <Button type="button" variant="secondary" onClick={() => router.back()}>
               취소
             </Button>
             <Button type="submit" variant="primary" disabled={isLoading}>

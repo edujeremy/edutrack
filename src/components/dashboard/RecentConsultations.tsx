@@ -85,7 +85,7 @@ export function RecentConsultations({
                 </div>
               </div>
               <p className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                {formatDistanceFromNow(consultation.consultation_date)}
+                {consultation.consultation_date ? formatDistanceFromNow(consultation.consultation_date) : '날짜 없음'}
               </p>
             </div>
           </Link>

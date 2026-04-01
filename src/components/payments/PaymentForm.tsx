@@ -41,9 +41,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     student_id: initialData?.student_id || '',
     amount: initialData?.amount.toLocaleString('ko-KR') || '',
     description: initialData?.description || '',
-    due_date: initialData?.due_date?.split('T')[0] || '',
+    due_date: initialData?.due_date ? initialData.due_date.split('T')[0] : '',
     status: initialData?.status || 'pending',
-    payment_date: initialData?.payment_date?.split('T')[0] || '',
+    payment_date: initialData?.payment_date ? initialData.payment_date.split('T')[0] : '',
   })
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,7 +182,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="secondary">
+            <Button type="button" variant="secondary" onClick={() => window.history.back()}>
               취소
             </Button>
             <Button type="submit" variant="primary" disabled={isLoading}>

@@ -49,8 +49,14 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
   }>({ key: 'created_at', direction: 'desc' })
 
   const sortedPayments = [...payments].sort((a, b) => {
-    const aVal = a[sortConfig.key as keyof Payment]
-    const bVal = b[sortConfig.key as keyof Payment]
+    let aVal: any = a[sortConfig.key as keyof Payment]
+    let bVal: any = b[sortConfig.key as keyof Payment]
+
+    // Handle 'student' key specially since it's a nested object
+    if (sortConfig.key === 'student') {
+      aVal = a.student?.name || ''
+      bVal = b.student?.name || ''
+    }
 
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal

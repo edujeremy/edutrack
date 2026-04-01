@@ -60,7 +60,7 @@ export default function SignupPage() {
 
     if (!formData.email) {
       newErrors.email = '이메일을 입력해주세요'
-    } else if (!formData.email.includes('@')) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = '유효한 이메일을 입력해주세요'
     }
 

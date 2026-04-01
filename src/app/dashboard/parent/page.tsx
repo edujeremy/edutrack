@@ -40,7 +40,7 @@ export default async function ParentDashboardPage() {
       .select('profile_id')
       .eq('parent_email', profile.email)
       .limit(1)
-      .single()
+      .maybeSingle()
     studentId = studentData?.profile_id || profile.id
   }
 
@@ -177,13 +177,13 @@ export default async function ParentDashboardPage() {
       </div>
 
       {/* Child Info Card */}
-      {studentRecord && (
+      {studentRecord && studentProfile && (
         <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 dark:border-gray-800 dark:from-indigo-950/20 dark:to-blue-950/20">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">자녀 정보</p>
               <h2 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {studentProfile?.name}
+                {studentProfile.name}
               </h2>
               <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
                 <div>

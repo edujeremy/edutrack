@@ -72,6 +72,16 @@ export default function EditStudentPage() {
     try {
       const supabase = createClient()
 
+      // Validate grade
+      let grade: number | null = null
+      if (formData.grade) {
+        const parsedGrade = parseInt(formData.grade)
+        if (isNaN(parsedGrade)) {
+          throw new Error('학년은 숫자여야 합니다.')
+        }
+        grade = parsedGrade
+      }
+
       // Update profile
       const { error: profileError } = await supabase
         .from('profiles')
@@ -89,7 +99,7 @@ export default function EditStudentPage() {
         .from('students')
         .update({
           school: formData.school || null,
-          grade: formData.grade ? parseInt(formData.grade) : null,
+          grade: grade,
           parent_name: formData.parent_name || null,
           parent_phone: formData.parent_phone || null,
           parent_email: formData.parent_email || null,

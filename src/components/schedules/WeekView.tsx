@@ -33,7 +33,10 @@ export const WeekView: React.FC<WeekViewProps> = ({
   const currentDate = useMemo(() => {
     const today = new Date()
     const start = new Date(today)
-    start.setDate(today.getDate() - today.getDay() + weekOffset * 7)
+    // Monday-first week (Korean locale): 0 = Monday, 6 = Sunday
+    const dayOfWeek = today.getDay()
+    const diff = today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)
+    start.setDate(diff + weekOffset * 7)
     return start
   }, [weekOffset])
 
@@ -54,8 +57,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
   const getSchedulesForSlot = (dayOfWeek: number, hour: number) => {
     return schedules.filter((s) => {
       if (s.day_of_week !== dayOfWeek || !s.is_active) return false
-      const [startHour] = s.start_time.split(':').map(Number)
-      const [endHour] = s.end_time.split(':').map(Number)
+      const [startHour] = (s.start_time || '09:00').split(':').map(Number)
+      const [endHour] = (s.end_time || '10:00').split(':').map(Number)
       return startHour <= hour && hour < endHour
     })
   }

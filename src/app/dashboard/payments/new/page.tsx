@@ -31,10 +31,16 @@ export default function NewPaymentPage() {
       setIsLoading(true)
       const supabase = await createClient()
 
+      // Validate amount is a valid number
+      const amount = parseFloat(formData.amount)
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error('결제 금액은 0보다 큰 숫자여야 합니다')
+      }
+
       const { error } = await supabase.from('payments').insert([
         {
           student_id: formData.student_id,
-          amount: formData.amount,
+          amount: amount,
           description: formData.description,
           due_date: formData.due_date,
           status: formData.status,
@@ -50,7 +56,7 @@ export default function NewPaymentPage() {
       router.refresh()
     } catch (error) {
       console.error('Error creating payment:', error)
-      alert('결제 추가에 실패했습니다')
+      alert(error instanceof Error ? error.message : '결제 추가에 실패했습니다')
     } finally {
       setIsLoading(false)
     }

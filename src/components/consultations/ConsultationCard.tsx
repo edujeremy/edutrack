@@ -36,7 +36,7 @@ export function ConsultationCard({
   onDelete,
 }: ConsultationCardProps) {
   const consultationType = consultation.topics?.[0] || '상담'
-  const isCompleted = consultation.updated_at > consultation.consultation_date
+  const isCompleted = new Date() > new Date(consultation.consultation_date)
 
   return (
     <Card className="hover:shadow-md transition-shadow">

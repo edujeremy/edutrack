@@ -47,9 +47,10 @@ export default function NewStudentPage() {
   }, [])
 
   const handleSubmit = async (formData: any) => {
-    try {
-      const supabase = createClient()
+    const supabase = createClient()
+    let createdProfileId: string | null = null
 
+    try {
       // Check if user is authenticated
       const {
         data: { user },
@@ -76,6 +77,8 @@ export default function NewStudentPage() {
 
       if (profileError) throw profileError
 
+      createdProfileId = profile.id
+
       // Create student record
       const { error: studentError } = await supabase.from('students').insert([
         {
@@ -93,6 +96,12 @@ export default function NewStudentPage() {
 
       if (studentError) throw studentError
     } catch (err) {
+      // Clean up: delete orphaned profile if student creation failed
+      if (createdProfileId) {
+        await supabase.from('profiles').delete().eq('id', createdProfileId).catch(() => {
+          // Silent catch for cleanup failure
+        })
+      }
       throw new Error(err instanceof Error ? err.message : '학생을 추가할 수 없습니다.')
     }
   }

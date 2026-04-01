@@ -54,12 +54,16 @@ export function UpcomingSchedules({
         다가오는 일정
       </h2>
       <div className="space-y-3">
-        {schedules.map((schedule) => (
+        {schedules.map((schedule) => {
+          const scheduleDateStr = new Date().toISOString().split('T')[0]
+          const hasScheduleToday = schedule.created_at?.split('T')[0] === scheduleDateStr
+
+          return (
           <div
             key={schedule.id}
             className={cn(
               'flex items-center gap-4 rounded-lg border p-4 transition-colors',
-              isToday(schedule.updated_at)
+              hasScheduleToday
                 ? 'border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/30'
                 : 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800'
             )}
@@ -69,7 +73,7 @@ export function UpcomingSchedules({
                 <p className="font-medium text-gray-900 dark:text-white">
                   {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
                 </p>
-                {isToday(schedule.updated_at) && (
+                {hasScheduleToday && (
                   <span className="inline-block rounded-full bg-indigo-600 px-2 py-1 text-xs font-semibold text-white">
                     오늘
                   </span>
@@ -88,7 +92,8 @@ export function UpcomingSchedules({
               강사: {schedule.teacher?.name || '-'}
             </div>
           </div>
-        ))}
+        )
+        })}
       </div>
     </div>
   )

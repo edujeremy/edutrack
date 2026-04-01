@@ -33,14 +33,22 @@ export default async function NotificationsPage({
   const markAllAsRead = async () => {
     'use server'
 
-    const supabase = await createClient()
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', user.id)
-      .eq('read', false)
+    try {
+      const supabase = await createClient()
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('read', false)
 
-    redirect('/dashboard/notifications')
+      if (error) throw error
+      redirect('/dashboard/notifications')
+    } catch (err) {
+      // Log error for debugging
+      console.error('Failed to mark notifications as read:', err)
+      // Re-throw to trigger error boundary or let page handle it gracefully
+      redirect('/dashboard/notifications?error=mark_failed')
+    }
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length
