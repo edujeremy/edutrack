@@ -1,8 +1,20 @@
+// XSS 방지: HTML 이스케이프 함수
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export function consultationReminderEmail(
   studentName: string,
   teacherName: string,
   date: string
 ): string {
+  studentName = escapeHtml(studentName)
+  teacherName = escapeHtml(teacherName)
   const formattedDate = new Date(date).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -116,6 +128,7 @@ export function paymentDueEmail(
   amount: number,
   dueDate: string
 ): string {
+  studentName = escapeHtml(studentName)
   const formattedAmount = new Intl.NumberFormat('ko-KR', {
     style: 'currency',
     currency: 'KRW',
@@ -236,6 +249,8 @@ export function newConsultationEmail(
   teacherName: string,
   type: string
 ): string {
+  studentName = escapeHtml(studentName)
+  teacherName = escapeHtml(teacherName)
   const typeLabel: { [key: string]: string } = {
     academic: '학습 상담',
     career: '진로 상담',
@@ -347,6 +362,8 @@ export function applicationUpdateEmail(
   university: string,
   status: string
 ): string {
+  studentName = escapeHtml(studentName)
+  university = escapeHtml(university)
   const statusLabel: { [key: string]: string } = {
     draft: '작성 중',
     submitted: '제출 완료',

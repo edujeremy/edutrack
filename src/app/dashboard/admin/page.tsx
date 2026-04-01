@@ -221,7 +221,7 @@ export default async function AdminDashboardPage() {
           icon={AlertCircle}
           title="미결제 건수"
           value={pendingPayments.length}
-          change={overduePayments.length > 0 ? -Math.ceil((overdueAmount / pendingAmount) * 100) : 0}
+          change={overduePayments.length > 0 && pendingAmount > 0 ? -Math.ceil((overdueAmount / pendingAmount) * 100) : 0}
           changeLabel="연체"
           variant="warning"
         />

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
           .from('profiles')
           .select('id')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (!existingProfile) {
           // Google 메타데이터에서 정보 추출

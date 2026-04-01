@@ -161,7 +161,7 @@ export default function SignupPage() {
               .insert({
                 profile_id: childProfile.id,
                 school: formData.childSchool || null,
-                grade: formData.childGrade ? parseInt(formData.childGrade) : null,
+                grade: formData.childGrade && !isNaN(parseInt(formData.childGrade)) ? parseInt(formData.childGrade) : null,
                 parent_name: formData.fullName,
                 parent_phone: formData.phone,
                 parent_email: formData.email,

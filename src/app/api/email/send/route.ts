@@ -96,6 +96,13 @@ export async function POST(request: NextRequest) {
         )
     }
 
+    if (!resend) {
+      return NextResponse.json(
+        { error: '이메일 서비스가 설정되지 않았습니다. RESEND_API_KEY를 확인해주세요.' },
+        { status: 503 }
+      )
+    }
+
     const response = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@edutrack.com',
       to,
