@@ -180,14 +180,14 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="flex gap-3">
           <Link
-            href="/consultations/new"
+            href="/dashboard/consultations/new"
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
           >
             <Plus className="h-4 w-4" />
             상담 추가
           </Link>
           <Link
-            href="/payments"
+            href="/dashboard/payments"
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             <BarChart3 className="h-4 w-4" />
