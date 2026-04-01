@@ -26,7 +26,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const supabase = await createClient()
   const pageSize = 12
-  const currentPage = parseInt(params.page || '1')
+  const currentPage = parseInt(params.page || '1', 10) || 1
   const offset = (currentPage - 1) * pageSize
 
   const filterType = params.type || ''
@@ -86,6 +86,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   const allConsultations = await supabase
     .from('consultations')
     .select('teacher:profiles(id, name)')
+    .limit(1000)
 
   const uniqueTeachers = Array.from(
     new Map(
