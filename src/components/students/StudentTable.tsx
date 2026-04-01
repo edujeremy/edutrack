@@ -35,8 +35,8 @@ export function StudentTable({ students, teachers }: StudentTableProps) {
     let bValue: any = b
 
     if (sortConfig.key === 'profile.name') {
-      aValue = a.profile.name
-      bValue = b.profile.name
+      aValue = a.profile?.name || ''
+      bValue = b.profile?.name || ''
     } else if (sortConfig.key === 'teacher') {
       aValue = a.teacher?.name || ''
       bValue = b.teacher?.name || ''

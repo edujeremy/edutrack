@@ -79,7 +79,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   }
 
   if (filterTeacher) {
-    filtered = filtered.filter((c) => c.teacher.id === filterTeacher)
+    filtered = filtered.filter((c) => c.teacher?.id === filterTeacher)
   }
 
   // Get unique teachers for filter dropdown
@@ -91,7 +91,8 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   const uniqueTeachers = Array.from(
     new Map(
       (allConsultations.data || [])
-        .map((c) => [c.teacher.id, c.teacher])
+        .filter((c: any) => c.teacher?.id)
+        .map((c: any) => [c.teacher.id, c.teacher])
         .entries()
     ).values()
   )
@@ -196,7 +197,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                   }`}
                 >
                   <Button
-                    variant={currentPage === i + 1 ? 'default' : 'outline'}
+                    variant={currentPage === i + 1 ? 'primary' : 'outline'}
                     size="sm"
                   >
                     {i + 1}

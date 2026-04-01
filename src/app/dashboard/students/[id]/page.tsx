@@ -111,7 +111,7 @@ async function StudentDetailContent({ params }: PageProps) {
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">{student.profiles.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{student.profiles?.name || '학생'}</h1>
               <span
                 className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
                   statusConfig[student.status as keyof typeof statusConfig]?.color ||

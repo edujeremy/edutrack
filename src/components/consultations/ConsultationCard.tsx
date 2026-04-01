@@ -44,8 +44,8 @@ export function ConsultationCard({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <p className="text-sm text-gray-600">
-              {consultation.student.profile.name} ·{' '}
-              {consultation.teacher.name}
+              {consultation.student?.profile?.name || '학생'} ·{' '}
+              {consultation.teacher?.name || '선생님'}
             </p>
             <h3 className="font-semibold text-lg mt-1 truncate">
               상담 기록

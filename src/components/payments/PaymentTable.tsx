@@ -132,7 +132,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
                   }`}
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {payment.student.name}
+                    {payment.student?.name || '미정'}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
                     {formatKrw(payment.amount)}

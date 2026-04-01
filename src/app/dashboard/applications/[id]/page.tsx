@@ -84,7 +84,7 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
                     {application.major}
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
-                    지원자: {application.student.profile.name}
+                    지원자: {application.student?.profile?.name || '학생'}
                   </p>
                 </div>
                 <Badge className={statusColor}>
@@ -161,20 +161,20 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
               <div>
                 <p className="text-sm text-gray-600">이름</p>
                 <p className="font-medium">
-                  {application.student.profile.name}
+                  {application.student?.profile?.name || '학생'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">이메일</p>
                 <p className="font-medium text-sm">
-                  {application.student.profile.email}
+                  {application.student?.profile?.email || '-'}
                 </p>
               </div>
-              {application.student.profile.phone && (
+              {application.student?.profile?.phone && (
                 <div>
                   <p className="text-sm text-gray-600">전화</p>
                   <p className="font-medium">
-                    {application.student.profile.phone}
+                    {application.student?.profile?.phone}
                   </p>
                 </div>
               )}

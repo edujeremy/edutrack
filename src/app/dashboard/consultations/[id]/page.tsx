@@ -68,10 +68,10 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">
-                    {consultation.student.profile.name}님 상담
+                    {consultation.student?.profile?.name || '학생'}님 상담
                   </h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    담당: {consultation.teacher.name}
+                    담당: {consultation.teacher?.name || '선생님'}
                   </p>
                 </div>
                 <Badge
@@ -147,13 +147,13 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
               <div>
                 <p className="text-sm text-gray-600">이름</p>
                 <p className="font-medium">
-                  {consultation.student.profile.name}
+                  {consultation.student?.profile?.name || '학생'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">이메일</p>
                 <p className="font-medium text-sm">
-                  {consultation.student.profile.email}
+                  {consultation.student?.profile?.email || '-'}
                 </p>
               </div>
             </CardContent>
@@ -166,12 +166,12 @@ export default async function ConsultationDetailPage({ params }: PageProps) {
             <CardContent className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600">이름</p>
-                <p className="font-medium">{consultation.teacher.name}</p>
+                <p className="font-medium">{consultation.teacher?.name || '선생님'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">이메일</p>
                 <p className="font-medium text-sm">
-                  {consultation.teacher.email}
+                  {consultation.teacher?.email || '-'}
                 </p>
               </div>
             </CardContent>
