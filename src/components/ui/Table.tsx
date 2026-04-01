@@ -43,7 +43,7 @@ export const Table = React.forwardRef<HTMLTableElement, TableProps>(
 )
 Table.displayName = 'Table'
 
-export const TableHead = React.forwardRef<
+export const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   TableHeadProps
 >(({ className, children, ...props }, ref) => (
@@ -55,9 +55,9 @@ export const TableHead = React.forwardRef<
     {children}
   </thead>
 ))
-TableHead.displayName = 'TableHead'
+TableHeader.displayName = 'TableHeader'
 
-export const TableHeaderCell = React.forwardRef<
+export const TableHead = React.forwardRef<
   HTMLTableCellElement,
   TableHeaderCellProps
 >(({ className, sortable, onSort, children, ...props }, ref) => (
@@ -74,11 +74,9 @@ export const TableHeaderCell = React.forwardRef<
     {children}
   </th>
 ))
-TableHeaderCell.displayName = 'TableHeaderCell'
+TableHead.displayName = 'TableHead'
 
-// Alias for backward compatibility
-export const TableHead = TableHeaderCell
-export const TableHeader = TableHead
+export const TableHeaderCell = TableHead
 
 export const TableBody = React.forwardRef<
   HTMLTableSectionElement,
