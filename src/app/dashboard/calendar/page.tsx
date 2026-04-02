@@ -359,25 +359,39 @@ export default function CalendarPage() {
                     const absentPass = pkgLessons.filter(l => l.attendance === 'absent' && !l.is_billable).length
                     // 소모된 회차 = 출석 + 결석(청구). 미청구 결석은 회차 소모 안됨
                     const consumed = attended + absentBillable
+                    const billingCycle = (pkg as any).billing_cycle || 0
+                    // 주기 기반: billingCycle > 0이면 cycle 단위로 표시, 0이면 전체 기준
+                    const cycleTotal = billingCycle > 0 ? billingCycle : pkg.total_sessions
+                    const currentCycleNum = billingCycle > 0 ? Math.floor(consumed / billingCycle) + 1 : 1
+                    const cycleConsumed = billingCycle > 0 ? consumed % billingCycle : consumed
                     const remaining = Math.max(pkg.total_sessions - consumed, 0)
                     const pct = Math.round((consumed / pkg.total_sessions) * 100)
                     const isComplete = consumed >= pkg.total_sessions
+                    // 주기 완료: 현재 소모가 cycle의 배수에 도달 (납부 시점)
+                    const isCycleDue = billingCycle > 0 && consumed > 0 && consumed % billingCycle === 0
+                    const showPayButton = isComplete || isCycleDue
                     return (
                       <div
                         key={pkg.id}
                         className={`border rounded-lg p-4 transition-all ${
-                          isComplete ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                          isComplete ? 'border-green-300 bg-green-50' : isCycleDue ? 'border-orange-300 bg-orange-50' : 'border-gray-200'
                         }`}
                       >
                         <div className="flex justify-between items-center mb-3">
                           <div>
                             <p className="font-semibold text-gray-900">{student?.name}</p>
-                            <p className="text-xs text-gray-500">{pkg.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {pkg.name}
+                              {billingCycle > 0 && <span className="ml-1 text-blue-600">({billingCycle}회 단위)</span>}
+                            </p>
                           </div>
                           <div className="text-right">
                             <span className={`text-3xl font-bold ${isComplete ? 'text-green-600' : 'text-indigo-600'}`}>
                               {consumed}<span className="text-lg text-gray-400">/{pkg.total_sessions}</span>
                             </span>
+                            {billingCycle > 0 && !isComplete && (
+                              <p className="text-xs text-gray-500">다음 납부: {billingCycle - cycleConsumed}회 후</p>
+                            )}
                           </div>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
@@ -393,12 +407,14 @@ export default function CalendarPage() {
                             {absentPass > 0 && <span className="text-blue-500">패스 {absentPass}회</span>}
                             <span className="font-medium text-gray-700">잔여 {remaining}회</span>
                           </div>
-                          {isComplete && (
+                          {showPayButton && (
                             <button
                               onClick={() => setTuitionPopupPkg(pkg)}
-                              className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors animate-pulse"
+                              className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-colors animate-pulse ${
+                                isComplete ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'
+                              }`}
                             >
-                              수강 완료 — 수강료 납부
+                              {isComplete ? '수강 완료 — 수강료 납부' : `${billingCycle}회 완료 — 수강료 납부`}
                             </button>
                           )}
                         </div>

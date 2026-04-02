@@ -38,6 +38,8 @@ interface FormData {
   teacher_id: string;
   total_sessions: string;
   tuition_amount: string;
+  billing_cycle: string;
+  pay_cycle: string;
   schedule_days: boolean[];
   start_time: string;
   end_time: string;
@@ -63,6 +65,8 @@ export default function PackagesPage() {
     teacher_id: '',
     total_sessions: '',
     tuition_amount: '',
+    billing_cycle: '0',
+    pay_cycle: '0',
     schedule_days: [false, false, false, false, false, false, false],
     start_time: '09:00',
     end_time: '10:00',
@@ -180,6 +184,8 @@ export default function PackagesPage() {
       teacher_id: '',
       total_sessions: '',
       tuition_amount: '',
+      billing_cycle: '0',
+      pay_cycle: '0',
       schedule_days: [false, false, false, false, false, false, false],
       start_time: '09:00',
       end_time: '10:00',
@@ -260,6 +266,8 @@ export default function PackagesPage() {
             name: formData.name,
             total_sessions: parseInt(formData.total_sessions),
             tuition_amount: parseFloat(formData.tuition_amount),
+            billing_cycle: parseInt(formData.billing_cycle) || 0,
+            pay_cycle: parseInt(formData.pay_cycle) || 0,
             schedule_days: scheduleDays,
             start_time: formData.start_time,
             end_time: formData.end_time,
@@ -302,6 +310,8 @@ export default function PackagesPage() {
               completed_sessions: 0,
               tuition_amount: parseFloat(formData.tuition_amount),
               tuition_status: 'unpaid',
+              billing_cycle: parseInt(formData.billing_cycle) || 0,
+              pay_cycle: parseInt(formData.pay_cycle) || 0,
               status: 'active',
               schedule_days: scheduleDays,
               start_time: formData.start_time,
@@ -610,15 +620,54 @@ export default function PackagesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    등록금 *
+                    수강료 ($) *
                   </label>
                   <input
                     type="number"
                     value={formData.tuition_amount}
                     onChange={(e) => setFormData(prev => ({ ...prev, tuition_amount: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="500000"
+                    placeholder="500"
                   />
+                </div>
+              </div>
+
+              {/* Billing & Pay Cycle Settings */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-semibold text-blue-800">결제 주기 설정</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      수강료 청구 주기
+                    </label>
+                    <select
+                      value={formData.billing_cycle}
+                      onChange={(e) => setFormData(prev => ({ ...prev, billing_cycle: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="0">전체 완료 후</option>
+                      <option value="4">4회마다</option>
+                      <option value="8">8회마다</option>
+                      <option value="12">12회마다</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">학부모 수강료 납부 주기</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      강사료 지급 주기
+                    </label>
+                    <select
+                      value={formData.pay_cycle}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pay_cycle: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="0">전체 완료 후</option>
+                      <option value="4">4회마다</option>
+                      <option value="8">8회마다</option>
+                      <option value="12">12회마다</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">강사 급여 지급 주기</p>
+                  </div>
                 </div>
               </div>
 
