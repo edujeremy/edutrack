@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -34,6 +36,23 @@ interface AbsenceRequest {
   reason: string;
 }
 
+interface UnpaidPackage {
+  id: string;
+  student_name: string;
+  package_name: string;
+  tuition_fee: number;
+  total_sessions: number;
+  completed_sessions: number;
+}
+
+interface PendingTeacherPay {
+  teacher_name: string;
+  teacher_id: string;
+  unpaid_sessions: number;
+  rate_per_session: number;
+  estimated_amount: number;
+}
+
 interface UpcomingLesson {
   id: string;
   student_name: string;
@@ -52,6 +71,7 @@ interface PaySettlement {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -66,6 +86,8 @@ export default function DashboardPage() {
   });
   const [recentComments, setRecentComments] = useState<RecentComment[]>([]);
   const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
+  const [unpaidPackages, setUnpaidPackages] = useState<UnpaidPackage[]>([]);
+  const [pendingTeacherPay, setPendingTeacherPay] = useState<PendingTeacherPay[]>([]);
 
   // Teacher data
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
@@ -101,12 +123,16 @@ export default function DashboardPage() {
 
         setUser(profileData);
 
+        // 학부모는 캘린더가 주 인터페이스
+        if (profileData.role === 'parent') {
+          router.replace('/dashboard/calendar');
+          return;
+        }
+
         if (profileData.role === 'admin') {
           await loadAdminDashboard();
         } else if (profileData.role === 'teacher') {
           await loadTeacherDashboard(sessionData.session.user.id);
-        } else if (profileData.role === 'parent') {
-          await loadParentDashboard(sessionData.session.user.id);
         }
       } catch (err) {
         setError('대시보드를 불러올 수 없습니다');
@@ -201,6 +227,56 @@ export default function DashboardPage() {
         reason: a.reason || '',
       })) || [];
       setAbsenceRequests(formattedAbsence);
+
+      // Unpaid packages (수강료 미납)
+      const { data: unpaidPkgs } = await supabase
+        .from('packages')
+        .select('id, name, tuition_fee, total_sessions, completed_sessions, students(name)')
+        .eq('tuition_status', 'unpaid')
+        .eq('status', 'active')
+        .limit(10);
+
+      const formattedUnpaid = unpaidPkgs?.map((p: any) => ({
+        id: p.id,
+        student_name: p.students?.name || 'Unknown',
+        package_name: p.name || '',
+        tuition_fee: p.tuition_fee || 0,
+        total_sessions: p.total_sessions || 0,
+        completed_sessions: p.completed_sessions || 0,
+      })) || [];
+      setUnpaidPackages(formattedUnpaid);
+
+      // Pending teacher pay (강사 미지급)
+      const { data: teacherData } = await supabase
+        .from('teachers')
+        .select('id, profile_id, rate_per_session, profiles(name)')
+        .eq('status', 'active');
+
+      if (teacherData && teacherData.length > 0) {
+        const teacherPayList: PendingTeacherPay[] = [];
+        for (const teacher of teacherData) {
+          // Count attended lessons with approved comments but no settlement
+          const { count: unpaidCount } = await supabase
+            .from('lessons')
+            .select('*', { count: 'exact', head: true })
+            .eq('attendance', 'attended')
+            .eq('is_teacher_payable', true)
+            .eq('packages.teacher_id', teacher.id);
+
+          const rate = teacher.rate_per_session || 0;
+          const sessions = unpaidCount || 0;
+          if (sessions > 0) {
+            teacherPayList.push({
+              teacher_name: (teacher as any).profiles?.name || 'Unknown',
+              teacher_id: teacher.id,
+              unpaid_sessions: sessions,
+              rate_per_session: rate,
+              estimated_amount: rate * sessions,
+            });
+          }
+        }
+        setPendingTeacherPay(teacherPayList);
+      }
     } catch (err) {
       console.error('Error loading admin dashboard:', err);
     }
@@ -420,8 +496,78 @@ export default function DashboardPage() {
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.upcomingLessonsCount}</div>
             </div>
             <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-              <div className="text-gray-500 text-sm font-medium">미납 등록금</div>
+              <div className="text-gray-500 text-sm font-medium">미납 수강료</div>
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.unpaidTuitionCount}</div>
+            </div>
+          </div>
+
+          {/* Quick Actions - 수강료 처리 & 강사지급 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 수강료 처리 */}
+            <div className="bg-white rounded-lg shadow border-t-4 border-orange-500">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-gray-900">수강료 처리</h2>
+                  <Link href="/dashboard/billing" className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+                    전체보기 &rarr;
+                  </Link>
+                </div>
+                {unpaidPackages.length > 0 ? (
+                  <div className="space-y-3">
+                    {unpaidPackages.slice(0, 5).map(pkg => (
+                      <div key={pkg.id} className="flex items-center justify-between border border-orange-100 rounded-lg p-3 bg-orange-50">
+                        <div>
+                          <div className="font-semibold text-gray-900 text-sm">{pkg.student_name}</div>
+                          <div className="text-xs text-gray-500">{pkg.package_name} ({pkg.completed_sessions}/{pkg.total_sessions}회)</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-orange-600">${pkg.tuition_fee.toLocaleString()}</div>
+                          <span className="text-xs text-red-500 font-medium">미납</span>
+                        </div>
+                      </div>
+                    ))}
+                    {unpaidPackages.length > 5 && (
+                      <p className="text-xs text-gray-500 text-center">외 {unpaidPackages.length - 5}건</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-gray-400 text-sm">미납 수강료가 없습니다</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 강사 지급 */}
+            <div className="bg-white rounded-lg shadow border-t-4 border-emerald-500">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-gray-900">강사 지급</h2>
+                  <Link href="/dashboard/pay" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+                    전체보기 &rarr;
+                  </Link>
+                </div>
+                {pendingTeacherPay.length > 0 ? (
+                  <div className="space-y-3">
+                    {pendingTeacherPay.map(tp => (
+                      <div key={tp.teacher_id} className="flex items-center justify-between border border-emerald-100 rounded-lg p-3 bg-emerald-50">
+                        <div>
+                          <div className="font-semibold text-gray-900 text-sm">{tp.teacher_name}</div>
+                          <div className="text-xs text-gray-500">{tp.unpaid_sessions}회 &times; ${tp.rate_per_session.toLocaleString()}/session</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-emerald-600">${tp.estimated_amount.toLocaleString()}</div>
+                          <span className="text-xs text-yellow-600 font-medium">미지급</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-gray-400 text-sm">미지급 건이 없습니다</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
