@@ -355,9 +355,13 @@ export default function CalendarPage() {
                     const student = students.find(s => s.id === pkg.student_id)
                     const pkgLessons = lessons.filter(l => l.package_id === pkg.id)
                     const attended = pkgLessons.filter(l => l.attendance === 'attended').length
-                    const absent = pkgLessons.filter(l => l.attendance === 'absent').length
-                    const pct = Math.round((attended / pkg.total_sessions) * 100)
-                    const isComplete = attended >= pkg.total_sessions
+                    const absentBillable = pkgLessons.filter(l => l.attendance === 'absent' && l.is_billable).length
+                    const absentPass = pkgLessons.filter(l => l.attendance === 'absent' && !l.is_billable).length
+                    // 소모된 회차 = 출석 + 결석(청구). 미청구 결석은 회차 소모 안됨
+                    const consumed = attended + absentBillable
+                    const remaining = Math.max(pkg.total_sessions - consumed, 0)
+                    const pct = Math.round((consumed / pkg.total_sessions) * 100)
+                    const isComplete = consumed >= pkg.total_sessions
                     return (
                       <div
                         key={pkg.id}
@@ -372,7 +376,7 @@ export default function CalendarPage() {
                           </div>
                           <div className="text-right">
                             <span className={`text-3xl font-bold ${isComplete ? 'text-green-600' : 'text-indigo-600'}`}>
-                              {attended}<span className="text-lg text-gray-400">/{pkg.total_sessions}</span>
+                              {consumed}<span className="text-lg text-gray-400">/{pkg.total_sessions}</span>
                             </span>
                           </div>
                         </div>
@@ -385,8 +389,9 @@ export default function CalendarPage() {
                         <div className="flex justify-between items-center">
                           <div className="flex gap-3 text-xs text-gray-500">
                             <span>출석 {attended}회</span>
-                            {absent > 0 && <span className="text-red-500">결석 {absent}회</span>}
-                            <span>잔여 {Math.max(pkg.total_sessions - attended - absent, 0)}회</span>
+                            {absentBillable > 0 && <span className="text-orange-500">결석(청구) {absentBillable}회</span>}
+                            {absentPass > 0 && <span className="text-blue-500">패스 {absentPass}회</span>}
+                            <span className="font-medium text-gray-700">잔여 {remaining}회</span>
                           </div>
                           {isComplete && (
                             <button

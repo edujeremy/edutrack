@@ -459,10 +459,17 @@ export default function DashboardPage() {
               .eq('package_id', pkg.id)
               .eq('attendance', 'attended');
 
+            const { count: absentBillableCount } = await supabase
+              .from('lessons')
+              .select('*', { count: 'exact', head: true })
+              .eq('package_id', pkg.id)
+              .eq('attendance', 'absent')
+              .eq('is_billable', true);
+
             counts.push({
               student_name: (pkg as any).students?.name || 'Unknown',
               package_name: pkg.name || '',
-              attended: attendedCount || 0,
+              attended: (attendedCount || 0) + (absentBillableCount || 0),
               total: pkg.total_sessions || 0,
             });
           }
