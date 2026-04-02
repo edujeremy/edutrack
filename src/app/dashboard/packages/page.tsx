@@ -500,7 +500,7 @@ export default function PackagesPage() {
                   <div>
                     <p className="text-xs text-gray-600">등록금</p>
                     <p className="font-medium text-gray-900">
-                      ₩{pkg.tuition_amount.toLocaleString()}
+                      ${pkg.tuition_amount.toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">

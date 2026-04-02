@@ -306,7 +306,7 @@ export default function TeachersPage() {
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">{teacher.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{teacher.email}</td>
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      ₩{teacher.per_session_rate.toLocaleString()}
+                      ${teacher.per_session_rate.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {teacher.settlement_cycle === 'monthly' ? '월간' : '기타'}
@@ -401,7 +401,7 @@ export default function TeachersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  수업료 (₩) *
+                  수업료 ($) *
                 </label>
                 <input
                   type="number"

@@ -134,19 +134,19 @@ export default function BillingPage() {
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-sm text-gray-600 mb-2">전체 수강료</p>
             <p className="text-3xl font-bold text-gray-900">
-              ₩{getTotalTuition().toLocaleString()}
+              ${getTotalTuition().toLocaleString()}
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-sm text-gray-600 mb-2">입금 완료</p>
             <p className="text-3xl font-bold text-green-600">
-              ₩{getPaidTuition().toLocaleString()}
+              ${getPaidTuition().toLocaleString()}
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-sm text-gray-600 mb-2">미입금</p>
             <p className="text-3xl font-bold text-red-600">
-              ₩{getUnpaidTuition().toLocaleString()}
+              ${getUnpaidTuition().toLocaleString()}
             </p>
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function BillingPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-right font-semibold">
-                    ₩{pkg.tuition_amount.toLocaleString()}
+                    ${pkg.tuition_amount.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span

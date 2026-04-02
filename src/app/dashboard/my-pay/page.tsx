@@ -150,12 +150,12 @@ export default function MyPayPage() {
                   </p>
                   <p className="text-3xl font-bold text-indigo-600">
                     {thisMonthSettlement
-                      ? `${thisMonthSettlement.total_amount.toLocaleString()}원`
+                      ? `$${thisMonthSettlement.total_amount.toLocaleString()}`
                       : '없음'}
                   </p>
                   {thisMonthSettlement && (
                     <p className="text-xs text-gray-600 mt-2">
-                      {thisMonthSettlement.session_count}회차 × {thisMonthSettlement.per_session_rate.toLocaleString()}원
+                      {thisMonthSettlement.session_count} × ${thisMonthSettlement.per_session_rate.toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -169,7 +169,7 @@ export default function MyPayPage() {
                     누적 정산액
                   </p>
                   <p className="text-3xl font-bold text-green-600">
-                    {totalEarned.toLocaleString()}원
+                    ${totalEarned.toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-600 mt-2">
                     확정/지급 완료
@@ -185,7 +185,7 @@ export default function MyPayPage() {
                     대기 중인 정산
                   </p>
                   <p className="text-3xl font-bold text-orange-600">
-                    {pendingAmount.toLocaleString()}원
+                    ${pendingAmount.toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-600 mt-2">
                     {settlements.filter((s) => s.status === 'pending').length}건
@@ -238,10 +238,10 @@ export default function MyPayPage() {
                             {periodLabel}
                           </p>
                           <p className="text-sm text-gray-600 mt-1">
-                            {settlement.session_count}회차 × {settlement.per_session_rate.toLocaleString()}원/회
+                            {settlement.session_count} × ${settlement.per_session_rate.toLocaleString()}/session
                           </p>
                           <p className="text-lg font-semibold text-gray-900 mt-2">
-                            {settlement.total_amount.toLocaleString()}원
+                            ${settlement.total_amount.toLocaleString()}
                           </p>
                         </div>
 

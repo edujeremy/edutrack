@@ -552,7 +552,7 @@ export default function DashboardPage() {
                             {settlement.period_start} ~ {settlement.period_end}
                           </div>
                           <div className="text-lg font-semibold text-gray-900 mt-1">
-                            ₩{settlement.total_amount.toLocaleString()}
+                            ${settlement.total_amount.toLocaleString()}
                           </div>
                         </div>
                         <div className="text-right">

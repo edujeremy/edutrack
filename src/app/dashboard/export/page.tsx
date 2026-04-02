@@ -252,8 +252,8 @@ export default function ExportPage() {
             escapeCSV(settlement.period_start),
             escapeCSV(settlement.period_end),
             escapeCSV(settlement.session_count),
-            escapeCSV(`₩${settlement.per_session_rate.toLocaleString()}`),
-            escapeCSV(`₩${settlement.total_amount.toLocaleString()}`),
+            escapeCSV(`$${settlement.per_session_rate.toLocaleString()}`),
+            escapeCSV(`$${settlement.total_amount.toLocaleString()}`),
             escapeCSV(
               settlement.status === 'pending'
                 ? '대기중'

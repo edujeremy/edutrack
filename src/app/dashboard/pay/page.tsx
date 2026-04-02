@@ -242,7 +242,7 @@ export default function PayPage() {
                 <div>
                   <p className="text-sm text-gray-600">회차 기본료</p>
                   <p className="text-lg font-semibold">
-                    ₩{teacher.per_session_rate.toLocaleString()}
+                    ${teacher.per_session_rate.toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -252,7 +252,7 @@ export default function PayPage() {
                 <div>
                   <p className="text-sm text-gray-600">대기 중인 금액</p>
                   <p className="text-lg font-semibold text-blue-600">
-                    ₩{(pendingAmounts[teacher.id] || 0).toLocaleString()}
+                    ${(pendingAmounts[teacher.id] || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -299,10 +299,10 @@ export default function PayPage() {
                         {settlement.session_count}
                       </td>
                       <td className="px-4 py-3 text-sm text-right">
-                        ₩{settlement.per_session_rate.toLocaleString()}
+                        ${settlement.per_session_rate.toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm text-right font-semibold">
-                        ₩{settlement.total_amount.toLocaleString()}
+                        ${settlement.total_amount.toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span

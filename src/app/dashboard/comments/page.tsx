@@ -70,8 +70,8 @@ export default function CommentsPage() {
             status,
             lesson_id,
             teacher_id,
-            lessons(session_number, lesson_date, packages(students(name))),
-            profiles(name)
+            lessons!comments_lesson_id_fkey(session_number, lesson_date, packages(students(name))),
+            profiles!comments_teacher_id_fkey(name)
           `
           )
           .order('status', { ascending: false })
