@@ -5,8 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Modal } from '@/components/ui/Modal'
-import type { Profile, Student, Package, Lesson, Comment } from '@/lib/types'
+import type { Student, Package, Lesson, Comment } from '@/lib/types'
 
 interface LessonWithComment extends Lesson {
   comment?: Comment | null
@@ -18,25 +17,21 @@ interface LessonWithComment extends Lesson {
 export default function CalendarPage() {
   const supabase = createClient()
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [profile, setProfile] = useState<Profile | null>(null)
   const [students, setStudents] = useState<Student[]>([])
   const [lessons, setLessons] = useState<LessonWithComment[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [dayLessons, setDayLessons] = useState<LessonWithComment[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
-
-  // Map to store lesson details
-  const [lessonMap, setLessonMap] = useState<Map<string, LessonWithComment>>(
-    new Map()
-  )
+  const [selectedLessonComment, setSelectedLessonComment] = useState<LessonWithComment | null>(null)
+  const [absenceProcessing, setAbsenceProcessing] = useState<string | null>(null)
+  const [absenceRequesting, setAbsenceRequesting] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true)
-
-        // Get current user profile
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -45,11 +40,8 @@ export default function CalendarPage() {
           .select('*')
           .eq('id', user.id)
           .maybeSingle()
-
         if (!profileData) return
-        setProfile(profileData)
 
-        // Get students where parent_id = user.id
         const { data: studentsData } = await supabase
           .from('students')
           .select('*')
@@ -61,31 +53,28 @@ export default function CalendarPage() {
         }
         setStudents(studentsData)
 
-        // Get packages for these students
-        const { data: packages } = await supabase
+        const { data: pkgs } = await supabase
           .from('packages')
           .select('*')
           .in('student_id', studentsData.map((s: Student) => s.id))
 
-        if (!packages || packages.length === 0) {
+        if (!pkgs || pkgs.length === 0) {
           setIsLoading(false)
           return
         }
+        setPackages(pkgs)
 
-        // Get lessons for these packages
         const { data: lessonsData } = await supabase
           .from('lessons')
           .select('*')
-          .in('package_id', packages.map((p: Package) => p.id))
+          .in('package_id', pkgs.map((p: Package) => p.id))
 
         if (lessonsData) {
-          // Get comments for lessons
           const { data: commentsData } = await supabase
             .from('comments')
             .select('*')
             .in('lesson_id', lessonsData.map((l: Lesson) => l.id))
 
-          // Get teacher names
           const { data: teachersData } = await supabase
             .from('teachers')
             .select('id, profile_id')
@@ -98,38 +87,22 @@ export default function CalendarPage() {
             (profilesData || []).map((p: any) => [p.id, p.name])
           )
 
-          // Enrich lessons with details
           const enrichedLessons = lessonsData.map((lesson: Lesson) => {
-            const pkg = packages.find((p: Package) => p.id === lesson.package_id)
-            const student = studentsData.find(
-              (s: Student) => s.id === pkg?.student_id
-            )
-            const teacher = (teachersData || []).find(
-              (t: any) => t.id === pkg?.teacher_id
-            )
-            const comment = (commentsData || []).find(
-              (c: Comment) => c.lesson_id === lesson.id
-            )
+            const pkg = pkgs.find((p: Package) => p.id === lesson.package_id)
+            const student = studentsData.find((s: Student) => s.id === pkg?.student_id)
+            const teacher = (teachersData || []).find((t: any) => t.id === pkg?.teacher_id)
+            const comment = (commentsData || []).find((c: Comment) => c.lesson_id === lesson.id)
 
             return {
               ...lesson,
               comment,
               student_name: student?.name || 'Unknown',
               package_name: pkg?.name || 'Unknown',
-              teacher_name: teacher
-                ? profileMap.get(teacher.profile_id)
-                : 'Unknown',
+              teacher_name: teacher ? profileMap.get(teacher.profile_id) : 'Unknown',
             }
           })
 
           setLessons(enrichedLessons)
-
-          // Build map for quick lookup
-          const newMap = new Map<string, LessonWithComment>()
-          enrichedLessons.forEach((lesson) => {
-            newMap.set(lesson.id, lesson)
-          })
-          setLessonMap(newMap)
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -137,61 +110,108 @@ export default function CalendarPage() {
         setIsLoading(false)
       }
     }
-
     loadData()
   }, [])
 
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-  }
+  const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  const getFirstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay()
 
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay()
-  }
+  const getLessonsForDate = (dateStr: string) => lessons.filter((l) => l.lesson_date === dateStr)
 
-  const getLessonColorForDate = (dateStr: string): string => {
-    const lessonsForDate = lessons.filter((l) => l.lesson_date === dateStr)
-
-    if (lessonsForDate.length === 0) return ''
-
-    // Priority: approved comment > attended > absent > scheduled
-    if (lessonsForDate.some((l) => l.comment?.status === 'approved')) {
-      return 'bg-purple-100 border-l-4 border-purple-500'
-    }
-    if (lessonsForDate.some((l) => l.attendance === 'attended')) {
-      return 'bg-green-100 border-l-4 border-green-500'
-    }
-    if (lessonsForDate.some((l) => l.attendance === 'absent')) {
-      return 'bg-red-100 border-l-4 border-red-500'
-    }
+  const getDateStyle = (dateStr: string): string => {
+    const dayLessons = getLessonsForDate(dateStr)
+    if (dayLessons.length === 0) return ''
+    if (dayLessons.some((l) => l.comment?.status === 'approved')) return 'bg-purple-100 border-l-4 border-purple-500'
+    if (dayLessons.some((l) => l.attendance === 'attended')) return 'bg-green-100 border-l-4 border-green-500'
+    if (dayLessons.some((l) => l.attendance === 'absent')) return 'bg-red-100 border-l-4 border-red-500'
     return 'bg-blue-100 border-l-4 border-blue-500'
   }
 
+  const getLessonDots = (dateStr: string) => {
+    const dayLessons = getLessonsForDate(dateStr)
+    return dayLessons.map((l) => {
+      if (l.comment?.status === 'approved') return 'bg-purple-500'
+      if (l.attendance === 'attended') return 'bg-green-500'
+      if (l.attendance === 'absent') return 'bg-red-500'
+      return 'bg-blue-500'
+    })
+  }
+
   const handleSelectDate = (dateStr: string) => {
-    const lessonsForDate = lessons.filter((l) => l.lesson_date === dateStr)
+    const lessonsForDate = getLessonsForDate(dateStr)
     if (lessonsForDate.length > 0) {
       setSelectedDate(dateStr)
       setDayLessons(lessonsForDate)
       setIsModalOpen(true)
+      setSelectedLessonComment(null)
     }
   }
 
-  const handlePrevMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
-    )
+  const handleAbsenceRequest = async (lessonId: string) => {
+    setAbsenceRequesting(lessonId)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const lesson = lessons.find(l => l.id === lessonId)
+      if (!lesson) return
+
+      const { error } = await supabase
+        .from('absence_requests')
+        .insert({
+          student_id: packages.find(p => p.id === lesson.package_id)?.student_id,
+          lesson_id: lessonId,
+          parent_id: user.id,
+          reason: '학부모 결석 신청',
+          status: 'pending',
+        })
+
+      if (!error) {
+        // Update local lesson state
+        setLessons(prev => prev.map(l =>
+          l.id === lessonId ? { ...l, attendance: 'absent' as const } : l
+        ))
+        setDayLessons(prev => prev.map(l =>
+          l.id === lessonId ? { ...l, attendance: 'absent' as const } : l
+        ))
+      }
+    } catch (err) {
+      console.error('Absence request error:', err)
+    } finally {
+      setAbsenceRequesting(null)
+    }
   }
 
-  const handleNextMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
-    )
+  const handleAbsenceBilling = async (lessonId: string, billable: boolean) => {
+    setAbsenceProcessing(lessonId)
+    try {
+      const { error } = await supabase
+        .from('lessons')
+        .update({
+          is_billable: billable,
+          is_teacher_payable: billable,
+        })
+        .eq('id', lessonId)
+
+      if (!error) {
+        setLessons(prev => prev.map(l =>
+          l.id === lessonId ? { ...l, is_billable: billable, is_teacher_payable: billable } : l
+        ))
+        setDayLessons(prev => prev.map(l =>
+          l.id === lessonId ? { ...l, is_billable: billable, is_teacher_payable: billable } : l
+        ))
+      }
+    } catch (err) {
+      console.error('Billing update error:', err)
+    } finally {
+      setAbsenceProcessing(null)
+    }
   }
 
   if (isLoading) {
     return (
       <div className="flex flex-col h-screen">
-        <Header title="수업일정" />
+        <Header title="수업 캘린더" />
         <div className="flex-1 flex items-center justify-center">
           <LoadingSpinner size="lg" label="로딩 중..." />
         </div>
@@ -201,195 +221,119 @@ export default function CalendarPage() {
 
   const daysInMonth = getDaysInMonth(currentDate)
   const firstDayOfMonth = getFirstDayOfMonth(currentDate)
-  const monthName = currentDate.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-  })
+  const monthName = currentDate.toLocaleString('ko-KR', { year: 'numeric', month: 'long' })
 
-  const calendarDays = []
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    calendarDays.push(null)
-  }
+  const calendarDays: (string | null)[] = []
+  for (let i = 0; i < firstDayOfMonth; i++) calendarDays.push(null)
   for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = `${currentDate.getFullYear()}-${String(
-      currentDate.getMonth() + 1
-    ).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
     calendarDays.push(dateStr)
   }
 
-  // Calculate package progress
-  const packageProgress = students.map((student) => {
-    const studentPackages = lessons.filter(
-      (l) => l.student_name === student.name
-    )
-    const packageInfo = studentPackages.length > 0
-      ? (() => {
-          const firstLesson = studentPackages[0]
-          return {
-            name: firstLesson.package_name,
-            total: 8, // Default, would need to fetch from Package table
-          }
-        })()
-      : null
-
-    return { student, packageInfo }
-  })
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <Header title="수업일정" />
-
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <Header title="수업 캘린더" />
+      <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* Calendar */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <button
-                  onClick={handlePrevMonth}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
+                <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {monthName}
-                </h2>
-                <button
-                  onClick={handleNextMonth}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                <h2 className="text-xl font-semibold text-gray-900">{monthName}</h2>
+                <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </CardHeader>
-
             <CardContent>
-              {/* Day headers */}
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-                  <div
-                    key={day}
-                    className="text-center font-semibold text-gray-600 py-2"
-                  >
-                    {day}
-                  </div>
+              <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+                {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+                  <div key={day} className={`text-center font-semibold text-xs md:text-sm py-2 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-600'}`}>{day}</div>
                 ))}
               </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {calendarDays.map((dateStr, idx) => {
-                  const colorClass = dateStr
-                    ? getLessonColorForDate(dateStr)
-                    : ''
-                  const hasLessons = dateStr
-                    ? lessons.some((l) => l.lesson_date === dateStr)
-                    : false
+                  const hasLessons = dateStr ? getLessonsForDate(dateStr).length > 0 : false
+                  const dots = dateStr ? getLessonDots(dateStr) : []
+                  const isToday = dateStr === today
+                  const dayNum = dateStr ? new Date(dateStr).getDate() : ''
+                  const dayOfWeek = idx % 7
 
                   return (
                     <button
                       key={idx}
                       onClick={() => dateStr && handleSelectDate(dateStr)}
-                      className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+                      className={`relative p-2 md:p-3 rounded-lg text-sm font-medium transition-all min-h-[48px] ${
                         dateStr
-                          ? `${colorClass} ${
-                              hasLessons
-                                ? 'cursor-pointer hover:shadow-md'
-                                : 'cursor-default'
-                            }`
-                          : 'text-gray-300 cursor-default'
-                      }`}
+                          ? hasLessons
+                            ? `${getDateStyle(dateStr)} cursor-pointer hover:shadow-md active:scale-95`
+                            : `cursor-default ${dayOfWeek === 0 ? 'text-red-400' : dayOfWeek === 6 ? 'text-blue-400' : 'text-gray-500'}`
+                          : 'cursor-default'
+                      } ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
                       disabled={!hasLessons}
                     >
-                      {dateStr ? new Date(dateStr).getDate() : ''}
+                      <span className={isToday ? 'font-bold text-indigo-600' : ''}>{dayNum}</span>
+                      {dots.length > 0 && (
+                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                          {dots.slice(0, 3).map((dot, i) => (
+                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                          ))}
+                        </div>
+                      )}
                     </button>
                   )
                 })}
               </div>
 
               {/* Legend */}
-              <div className="mt-6 pt-4 border-t border-gray-200 space-y-2">
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-4 h-4 bg-purple-100 border-l-4 border-purple-500"></div>
-                  <span className="text-gray-600">피드백 있음</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-4 h-4 bg-green-100 border-l-4 border-green-500"></div>
-                  <span className="text-gray-600">출석</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-4 h-4 bg-red-100 border-l-4 border-red-500"></div>
-                  <span className="text-gray-600">결석</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-4 h-4 bg-blue-100 border-l-4 border-blue-500"></div>
-                  <span className="text-gray-600">예정됨</span>
-                </div>
+              <div className="mt-4 pt-3 border-t border-gray-200 flex flex-wrap gap-4 text-xs md:text-sm">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-purple-500" /><span className="text-gray-600">코멘트</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-gray-600">출석</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-gray-600">결석</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-gray-600">예정</span></div>
               </div>
             </CardContent>
           </Card>
 
           {/* Package Progress */}
-          {students.length > 0 && (
+          {packages.length > 0 && (
             <Card>
               <CardHeader>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  수업 진행 현황
-                </h2>
+                <h2 className="text-lg font-semibold text-gray-900">수강 진행 현황</h2>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {packageProgress.map(({ student, packageInfo }) => (
-                    <div key={student.id}>
-                      <p className="font-medium text-gray-900 mb-2">
-                        {student.name}
-                      </p>
-                      {packageInfo ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {Array.from({ length: 8 }).map((_, idx) => (
-                            <div
-                              key={idx}
-                              className={`w-8 h-8 rounded flex items-center justify-center text-xs font-bold transition-colors ${
-                                idx < 4
-                                  ? 'bg-green-100 text-green-700 border border-green-300'
-                                  : 'bg-gray-100 text-gray-600 border border-gray-300'
-                              }`}
-                            >
-                              {idx + 1}
-                            </div>
-                          ))}
+                  {packages.map((pkg) => {
+                    const student = students.find(s => s.id === pkg.student_id)
+                    const pkgLessons = lessons.filter(l => l.package_id === pkg.id)
+                    const attended = pkgLessons.filter(l => l.attendance === 'attended').length
+                    const absent = pkgLessons.filter(l => l.attendance === 'absent').length
+                    const pct = Math.round((attended / pkg.total_sessions) * 100)
+                    return (
+                      <div key={pkg.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-medium text-gray-900">{student?.name}</p>
+                            <p className="text-xs text-gray-500">{pkg.name}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-indigo-600">{attended}/{pkg.total_sessions}회</span>
                         </div>
-                      ) : (
-                        <p className="text-sm text-gray-600">
-                          진행 중인 수업이 없습니다
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                          <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="flex gap-3 text-xs text-gray-500">
+                          <span>출석 {attended}회</span>
+                          {absent > 0 && <span className="text-red-500">결석 {absent}회</span>}
+                          <span>잔여 {pkg.total_sessions - attended - absent}회</span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -397,87 +341,136 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Lesson Details Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={
-          selectedDate
-            ? new Date(selectedDate).toLocaleDateString('ko-KR', {
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long',
-              })
-            : ''
-        }
-      >
-        <div className="space-y-4">
-          {dayLessons.map((lesson) => (
-            <div key={lesson.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="mb-3">
-                <p className="font-medium text-gray-900">{lesson.student_name}</p>
-                <p className="text-sm text-gray-600">
-                  {lesson.session_number}회차 · {lesson.teacher_name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {lesson.start_time} - {lesson.end_time}
-                </p>
-              </div>
-
-              <div
-                className={`px-2 py-1 rounded text-xs font-medium inline-block mb-3 ${
-                  lesson.attendance === 'attended'
-                    ? 'bg-green-100 text-green-600'
-                    : lesson.attendance === 'absent'
-                      ? 'bg-red-100 text-red-600'
-                      : 'bg-blue-100 text-blue-600'
-                }`}
-              >
-                {lesson.attendance === 'attended'
-                  ? '출석'
-                  : lesson.attendance === 'absent'
-                    ? '결석'
-                    : '예정'}
-              </div>
-
-              {lesson.comment?.status === 'approved' && (
-                <div className="mt-3 space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">진도</p>
-                    <p className="text-sm text-gray-900">{lesson.comment.progress}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">과제평가</p>
-                    <p className="text-sm text-gray-900">
-                      {lesson.comment.homework_evaluation}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">잘한점</p>
-                    <p className="text-sm text-gray-900">
-                      {lesson.comment.strengths}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">아쉬운점</p>
-                    <p className="text-sm text-gray-900">
-                      {lesson.comment.improvements}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">과제</p>
-                    <p className="text-sm text-gray-900">{lesson.comment.homework}</p>
-                  </div>
-                </div>
-              )}
+      {/* Day Detail Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center" onClick={() => { setIsModalOpen(false); setSelectedLessonComment(null) }}>
+          <div className="bg-white w-full md:max-w-lg md:rounded-xl rounded-t-xl max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-indigo-50">
+              <h3 className="text-lg font-bold text-indigo-900">
+                {selectedDate && new Date(selectedDate).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
+              </h3>
+              <button onClick={() => { setIsModalOpen(false); setSelectedLessonComment(null) }} className="text-gray-500 hover:text-gray-700 p-1">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-          ))}
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto max-h-[70vh] p-5 space-y-4">
+              {dayLessons.map((lesson) => (
+                <div key={lesson.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                  {/* Lesson Header */}
+                  <div className={`p-4 ${
+                    lesson.attendance === 'absent' ? 'bg-red-50' : lesson.attendance === 'attended' ? 'bg-green-50' : 'bg-blue-50'
+                  }`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-gray-900 text-lg">{lesson.student_name}</p>
+                        <p className="text-sm text-gray-600">{lesson.package_name}</p>
+                        <p className="text-sm text-gray-500 mt-1">{lesson.session_number}회차 &middot; {lesson.teacher_name} &middot; {lesson.start_time}~{lesson.end_time}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        lesson.attendance === 'attended' ? 'bg-green-200 text-green-800' :
+                        lesson.attendance === 'absent' ? 'bg-red-200 text-red-800' :
+                        'bg-blue-200 text-blue-800'
+                      }`}>
+                        {lesson.attendance === 'attended' ? '출석' : lesson.attendance === 'absent' ? '결석' : '예정'}
+                      </span>
+                    </div>
+
+                    {/* Absent: Billing Options */}
+                    {lesson.attendance === 'absent' && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-red-200">
+                        <p className="text-sm font-medium text-gray-700 mb-2">결석 처리 방법</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAbsenceBilling(lesson.id, false)}
+                            disabled={absenceProcessing === lesson.id}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              !lesson.is_billable
+                                ? 'bg-gray-800 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {absenceProcessing === lesson.id ? '...' : '패스 (미청구)'}
+                          </button>
+                          <button
+                            onClick={() => handleAbsenceBilling(lesson.id, true)}
+                            disabled={absenceProcessing === lesson.id}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              lesson.is_billable
+                                ? 'bg-orange-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {absenceProcessing === lesson.id ? '...' : '수강료 청구'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Scheduled: Absence Request */}
+                    {lesson.attendance === 'scheduled' && (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => handleAbsenceRequest(lesson.id)}
+                          disabled={absenceRequesting === lesson.id}
+                          className="w-full px-3 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                        >
+                          {absenceRequesting === lesson.id ? '처리 중...' : '결석 신청'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comment Section */}
+                  {lesson.comment?.status === 'approved' && (
+                    <div className="border-t border-gray-200">
+                      <button
+                        onClick={() => setSelectedLessonComment(selectedLessonComment?.id === lesson.id ? null : lesson)}
+                        className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                          수업 코멘트 보기
+                        </span>
+                        <svg className={`w-5 h-5 text-gray-400 transition-transform ${selectedLessonComment?.id === lesson.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+
+                      {selectedLessonComment?.id === lesson.id && (
+                        <div className="px-4 pb-4 space-y-3">
+                          <div className="bg-purple-50 rounded-lg p-3 space-y-3">
+                            <div>
+                              <p className="text-xs font-bold text-purple-600 mb-1">진도</p>
+                              <p className="text-sm text-gray-800">{lesson.comment.progress}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-purple-600 mb-1">숙제 평가</p>
+                              <p className="text-sm text-gray-800">{lesson.comment.homework_evaluation}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-purple-600 mb-1">잘한 점</p>
+                              <p className="text-sm text-gray-800">{lesson.comment.strengths}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-purple-600 mb-1">개선할 점</p>
+                              <p className="text-sm text-gray-800">{lesson.comment.improvements}</p>
+                            </div>
+                            <div className="pt-2 border-t border-purple-200">
+                              <p className="text-xs font-bold text-purple-600 mb-1">숙제</p>
+                              <p className="text-sm font-medium text-gray-900">{lesson.comment.homework}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </Modal>
+      )}
     </div>
   )
 }
