@@ -83,6 +83,13 @@ interface UpcomingLesson {
   lesson_date: string;
 }
 
+interface StudentSessionCount {
+  student_name: string;
+  package_name: string;
+  attended: number;
+  total: number;
+}
+
 interface PaySettlement {
   id: string;
   period_start: string;
@@ -117,6 +124,7 @@ export default function DashboardPage() {
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
   const [pendingCommentLessons, setPendingCommentLessons] = useState<UpcomingLesson[]>([]);
   const [paySettlements, setPaySettlements] = useState<PaySettlement[]>([]);
+  const [studentSessionCounts, setStudentSessionCounts] = useState<StudentSessionCount[]>([]);
 
   // Parent data
   const [childUpcomingLessons, setChildUpcomingLessons] = useState<UpcomingLesson[]>([]);
@@ -427,6 +435,40 @@ export default function DashboardPage() {
         status: s.status,
       })) || [];
       setPaySettlements(formattedSettlements);
+
+      // Get student session counts for this teacher
+      const { data: teacherRecord } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('profile_id', teacherId)
+        .maybeSingle();
+
+      if (teacherRecord) {
+        const { data: myPackages } = await supabase
+          .from('packages')
+          .select('id, name, total_sessions, student_id, students(name)')
+          .eq('teacher_id', teacherRecord.id)
+          .eq('status', 'active');
+
+        if (myPackages && myPackages.length > 0) {
+          const counts: StudentSessionCount[] = [];
+          for (const pkg of myPackages) {
+            const { count: attendedCount } = await supabase
+              .from('lessons')
+              .select('*', { count: 'exact', head: true })
+              .eq('package_id', pkg.id)
+              .eq('attendance', 'attended');
+
+            counts.push({
+              student_name: (pkg as any).students?.name || 'Unknown',
+              package_name: pkg.name || '',
+              attended: attendedCount || 0,
+              total: pkg.total_sessions || 0,
+            });
+          }
+          setStudentSessionCounts(counts);
+        }
+      }
     } catch (err) {
       console.error('Error loading teacher dashboard:', err);
     }
@@ -795,6 +837,42 @@ export default function DashboardPage() {
 
       {user?.role === 'teacher' && (
         <div className="space-y-6">
+          {/* Student Session Counts */}
+          {studentSessionCounts.length > 0 && (
+            <div className="bg-white rounded-lg shadow">
+              <div className="border-b border-gray-200 p-6">
+                <h2 className="text-xl font-bold text-gray-900">학생별 수업 현황</h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {studentSessionCounts.map((sc, idx) => {
+                    const pct = Math.round((sc.attended / sc.total) * 100);
+                    const isComplete = sc.attended >= sc.total;
+                    return (
+                      <div key={idx} className={`border rounded-lg p-4 ${isComplete ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-semibold text-gray-900">{sc.student_name}</div>
+                            <div className="text-xs text-gray-500">{sc.package_name}</div>
+                          </div>
+                          <div className={`text-2xl font-bold ${isComplete ? 'text-green-600' : 'text-indigo-600'}`}>
+                            {sc.attended}/{sc.total}
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                          <div className={`h-2 rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                        {isComplete && (
+                          <p className="text-xs text-green-600 font-medium mt-2">수업 완료</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Upcoming Lessons */}
           <div className="bg-white rounded-lg shadow">
             <div className="border-b border-gray-200 p-6">

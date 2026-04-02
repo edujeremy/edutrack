@@ -29,6 +29,7 @@ export default function CalendarPage() {
   const [absenceProcessing, setAbsenceProcessing] = useState<string | null>(null)
   const [absenceRequesting, setAbsenceRequesting] = useState<string | null>(null)
   const [commentModalLesson, setCommentModalLesson] = useState<LessonWithComment | null>(null)
+  const [tuitionPopupPkg, setTuitionPopupPkg] = useState<Package | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -356,22 +357,45 @@ export default function CalendarPage() {
                     const attended = pkgLessons.filter(l => l.attendance === 'attended').length
                     const absent = pkgLessons.filter(l => l.attendance === 'absent').length
                     const pct = Math.round((attended / pkg.total_sessions) * 100)
+                    const isComplete = attended >= pkg.total_sessions
                     return (
-                      <div key={pkg.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
+                      <div
+                        key={pkg.id}
+                        className={`border rounded-lg p-4 transition-all ${
+                          isComplete ? 'border-green-300 bg-green-50' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-3">
                           <div>
-                            <p className="font-medium text-gray-900">{student?.name}</p>
+                            <p className="font-semibold text-gray-900">{student?.name}</p>
                             <p className="text-xs text-gray-500">{pkg.name}</p>
                           </div>
-                          <span className="text-sm font-semibold text-indigo-600">{attended}/{pkg.total_sessions}회</span>
+                          <div className="text-right">
+                            <span className={`text-3xl font-bold ${isComplete ? 'text-green-600' : 'text-indigo-600'}`}>
+                              {attended}<span className="text-lg text-gray-400">/{pkg.total_sessions}</span>
+                            </span>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                          <div
+                            className={`h-3 rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-indigo-500'}`}
+                            style={{ width: `${Math.min(pct, 100)}%` }}
+                          />
                         </div>
-                        <div className="flex gap-3 text-xs text-gray-500">
-                          <span>출석 {attended}회</span>
-                          {absent > 0 && <span className="text-red-500">결석 {absent}회</span>}
-                          <span>잔여 {pkg.total_sessions - attended - absent}회</span>
+                        <div className="flex justify-between items-center">
+                          <div className="flex gap-3 text-xs text-gray-500">
+                            <span>출석 {attended}회</span>
+                            {absent > 0 && <span className="text-red-500">결석 {absent}회</span>}
+                            <span>잔여 {Math.max(pkg.total_sessions - attended - absent, 0)}회</span>
+                          </div>
+                          {isComplete && (
+                            <button
+                              onClick={() => setTuitionPopupPkg(pkg)}
+                              className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors animate-pulse"
+                            >
+                              수강 완료 — 수강료 납부
+                            </button>
+                          )}
                         </div>
                       </div>
                     )
@@ -527,6 +551,48 @@ export default function CalendarPage() {
                   <p className="text-xs font-bold text-purple-600 mb-1">숙제</p>
                   <p className="text-sm font-medium text-gray-900">{commentModalLesson.comment.homework}</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tuition Payment Popup */}
+      {tuitionPopupPkg && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center" onClick={() => setTuitionPopupPkg(null)}>
+          <div className="bg-white w-full md:max-w-md md:rounded-xl rounded-t-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-green-600 px-6 py-5 text-white text-center">
+              <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <h3 className="text-xl font-bold">수강 완료!</h3>
+              <p className="text-green-100 text-sm mt-1">{students.find(s => s.id === tuitionPopupPkg.student_id)?.name} — {tuitionPopupPkg.name}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">총 수업</span>
+                  <span className="font-bold text-gray-900">{tuitionPopupPkg.total_sessions}회</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">수강료</span>
+                  <span className="text-2xl font-bold text-green-600">${(tuitionPopupPkg.tuition_fee || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 text-center">
+                모든 수업이 완료되었습니다. 수강료 납부를 진행해주세요.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setTuitionPopupPkg(null)}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  나중에
+                </button>
+                <Link
+                  href="/dashboard/consultation-request"
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium text-center hover:bg-green-700 transition-colors"
+                >
+                  납부 문의
+                </Link>
               </div>
             </div>
           </div>
