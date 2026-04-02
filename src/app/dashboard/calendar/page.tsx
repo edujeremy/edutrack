@@ -388,34 +388,12 @@ export default function CalendarPage() {
                       </span>
                     </div>
 
-                    {/* Absent: Billing Options */}
+                    {/* Absent: Status display for parent (billing is admin-only) */}
                     {lesson.attendance === 'absent' && (
                       <div className="mt-3 p-3 bg-white rounded-lg border border-red-200">
-                        <p className="text-sm font-medium text-gray-700 mb-2">결석 처리 방법</p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleAbsenceBilling(lesson.id, false)}
-                            disabled={absenceProcessing === lesson.id}
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              !lesson.is_billable
-                                ? 'bg-gray-800 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {absenceProcessing === lesson.id ? '...' : '패스 (미청구)'}
-                          </button>
-                          <button
-                            onClick={() => handleAbsenceBilling(lesson.id, true)}
-                            disabled={absenceProcessing === lesson.id}
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              lesson.is_billable
-                                ? 'bg-orange-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {absenceProcessing === lesson.id ? '...' : '수강료 청구'}
-                          </button>
-                        </div>
+                        <p className="text-sm text-gray-600">
+                          결석 처리 상태: {lesson.is_billable ? <span className="font-medium text-orange-600">수강료 청구</span> : <span className="font-medium text-gray-600">패스 (미청구)</span>}
+                        </p>
                       </div>
                     )}
 

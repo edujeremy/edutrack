@@ -36,6 +36,28 @@ interface AbsenceRequest {
   reason: string;
 }
 
+interface AbsentLesson {
+  id: string;
+  lesson_date: string;
+  session_number: number;
+  student_name: string;
+  teacher_name: string;
+  is_billable: boolean;
+  is_teacher_payable: boolean;
+}
+
+interface ConsultationItem {
+  id: string;
+  parent_name: string;
+  student_name: string;
+  subject: string;
+  message: string;
+  preferred_date: string | null;
+  preferred_time: string | null;
+  status: string;
+  created_at: string;
+}
+
 interface UnpaidPackage {
   id: string;
   student_name: string;
@@ -88,6 +110,8 @@ export default function DashboardPage() {
   const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
   const [unpaidPackages, setUnpaidPackages] = useState<UnpaidPackage[]>([]);
   const [pendingTeacherPay, setPendingTeacherPay] = useState<PendingTeacherPay[]>([]);
+  const [absentLessons, setAbsentLessons] = useState<AbsentLesson[]>([]);
+  const [consultationItems, setConsultationItems] = useState<ConsultationItem[]>([]);
 
   // Teacher data
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
@@ -277,6 +301,53 @@ export default function DashboardPage() {
         }
         setPendingTeacherPay(teacherPayList);
       }
+
+      // Recent absent lessons (결석 수업 - 청구/지급 처리 필요)
+      const { data: absentData } = await supabase
+        .from('lessons')
+        .select(`
+          id, lesson_date, session_number, is_billable, is_teacher_payable,
+          packages(students(name), teachers(profiles(name)))
+        `)
+        .eq('attendance', 'absent')
+        .order('lesson_date', { ascending: false })
+        .limit(10);
+
+      const formattedAbsent = absentData?.map((l: any) => ({
+        id: l.id,
+        lesson_date: l.lesson_date,
+        session_number: l.session_number,
+        student_name: l.packages?.students?.name || 'Unknown',
+        teacher_name: l.packages?.teachers?.profiles?.name || 'Unknown',
+        is_billable: l.is_billable,
+        is_teacher_payable: l.is_teacher_payable,
+      })) || [];
+      setAbsentLessons(formattedAbsent);
+
+      // Pending consultation requests (상담 요청)
+      const { data: consultData } = await supabase
+        .from('consultation_requests')
+        .select(`
+          id, subject, message, preferred_date, preferred_time, status, created_at,
+          profiles(name),
+          students(name)
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const formattedConsult = consultData?.map((c: any) => ({
+        id: c.id,
+        parent_name: c.profiles?.name || 'Unknown',
+        student_name: c.students?.name || 'Unknown',
+        subject: c.subject || '',
+        message: c.message || '',
+        preferred_date: c.preferred_date,
+        preferred_time: c.preferred_time,
+        status: c.status,
+        created_at: c.created_at,
+      })) || [];
+      setConsultationItems(formattedConsult);
     } catch (err) {
       console.error('Error loading admin dashboard:', err);
     }
@@ -455,6 +526,16 @@ export default function DashboardPage() {
     }
   };
 
+  const toggleBillable = async (lessonId: string, current: boolean) => {
+    await supabase.from('lessons').update({ is_billable: !current }).eq('id', lessonId);
+    setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, is_billable: !current } : l));
+  };
+
+  const toggleTeacherPayable = async (lessonId: string, current: boolean) => {
+    await supabase.from('lessons').update({ is_teacher_payable: !current }).eq('id', lessonId);
+    setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, is_teacher_payable: !current } : l));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -601,10 +682,93 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent Absence Requests */}
+          {/* Absent Lessons - Billing & Pay Management */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="border-b border-gray-200 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">결석 수업 관리</h2>
+              <Link href="/dashboard/lessons?filter=absent" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                전체보기 &rarr;
+              </Link>
+            </div>
+            <div className="p-6">
+              {absentLessons.length > 0 ? (
+                <div className="space-y-3">
+                  {absentLessons.map(lesson => (
+                    <div key={lesson.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">{lesson.student_name}</div>
+                          <div className="text-sm text-gray-500">{lesson.lesson_date} &middot; {lesson.session_number}회차 &middot; {lesson.teacher_name}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleBillable(lesson.id, lesson.is_billable)}
+                            className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
+                              lesson.is_billable
+                                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                          >
+                            수강료 {lesson.is_billable ? '청구' : '미청구'}
+                          </button>
+                          <button
+                            onClick={() => toggleTeacherPayable(lesson.id, lesson.is_teacher_payable)}
+                            className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
+                              lesson.is_teacher_payable
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                          >
+                            강사료 {lesson.is_teacher_payable ? '지급' : '미지급'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">결석 수업이 없습니다</p>
+              )}
+            </div>
+          </div>
+
+          {/* Consultation Requests (상담 요청) */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="border-b border-gray-200 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">상담 요청</h2>
+              <Link href="/dashboard/consultations" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                전체보기 &rarr;
+              </Link>
+            </div>
+            <div className="p-6">
+              {consultationItems.length > 0 ? (
+                <div className="space-y-4">
+                  {consultationItems.map(item => (
+                    <div key={item.id} className="border border-indigo-100 rounded-lg p-4 bg-indigo-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-semibold text-gray-900">{item.student_name} <span className="text-sm font-normal text-gray-500">({item.parent_name})</span></div>
+                          <div className="text-sm font-medium text-indigo-700 mt-1">{item.subject}</div>
+                        </div>
+                        <div className="text-right text-xs text-gray-500">
+                          {item.preferred_date && <div>희망일: {item.preferred_date}</div>}
+                          {item.preferred_time && <div>{item.preferred_time}</div>}
+                        </div>
+                      </div>
+                      {item.message && <p className="text-sm text-gray-600 line-clamp-2">{item.message}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">대기 중인 상담 요청이 없습니다</p>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Absence Requests from Parents */}
           <div className="bg-white rounded-lg shadow">
             <div className="border-b border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900">최근 결석 요청</h2>
+              <h2 className="text-xl font-bold text-gray-900">학부모 결석 신청</h2>
             </div>
             <div className="p-6">
               {absenceRequests.length > 0 ? (
@@ -622,7 +786,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">결석 요청이 없습니다</p>
+                <p className="text-gray-500">결석 신청이 없습니다</p>
               )}
             </div>
           </div>
