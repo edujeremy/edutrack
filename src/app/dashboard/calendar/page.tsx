@@ -28,6 +28,7 @@ export default function CalendarPage() {
   const [selectedLessonComment, setSelectedLessonComment] = useState<LessonWithComment | null>(null)
   const [absenceProcessing, setAbsenceProcessing] = useState<string | null>(null)
   const [absenceRequesting, setAbsenceRequesting] = useState<string | null>(null)
+  const [commentModalLesson, setCommentModalLesson] = useState<LessonWithComment | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -118,6 +119,15 @@ export default function CalendarPage() {
   const getFirstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay()
 
   const getLessonsForDate = (dateStr: string) => lessons.filter((l) => l.lesson_date === dateStr)
+  const hasApprovedComment = (dateStr: string) => getLessonsForDate(dateStr).some(l => l.comment?.status === 'approved')
+
+  const handleCommentBadgeClick = (e: React.MouseEvent, dateStr: string) => {
+    e.stopPropagation()
+    const lessonsWithComment = getLessonsForDate(dateStr).filter(l => l.comment?.status === 'approved')
+    if (lessonsWithComment.length > 0) {
+      setCommentModalLesson(lessonsWithComment[0])
+    }
+  }
 
   const getDateStyle = (dateStr: string): string => {
     const dayLessons = getLessonsForDate(dateStr)
@@ -268,17 +278,18 @@ export default function CalendarPage() {
               </div>
               <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {calendarDays.map((dateStr, idx) => {
-                  const hasLessons = dateStr ? getLessonsForDate(dateStr).length > 0 : false
-                  const dots = dateStr ? getLessonDots(dateStr) : []
+                  const dateLessons = dateStr ? getLessonsForDate(dateStr) : []
+                  const hasLessons = dateLessons.length > 0
                   const isToday = dateStr === today
                   const dayNum = dateStr ? new Date(dateStr).getDate() : ''
                   const dayOfWeek = idx % 7
+                  const hasComment = dateStr ? hasApprovedComment(dateStr) : false
 
                   return (
                     <button
                       key={idx}
                       onClick={() => dateStr && handleSelectDate(dateStr)}
-                      className={`relative p-2 md:p-3 rounded-lg text-sm font-medium transition-all min-h-[48px] ${
+                      className={`relative p-1 md:p-2 rounded-lg text-xs md:text-sm font-medium transition-all min-h-[56px] md:min-h-[64px] flex flex-col items-center ${
                         dateStr
                           ? hasLessons
                             ? `${getDateStyle(dateStr)} cursor-pointer hover:shadow-md active:scale-95`
@@ -287,12 +298,33 @@ export default function CalendarPage() {
                       } ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
                       disabled={!hasLessons}
                     >
-                      <span className={isToday ? 'font-bold text-indigo-600' : ''}>{dayNum}</span>
-                      {dots.length > 0 && (
-                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                          {dots.slice(0, 3).map((dot, i) => (
-                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                      <span className={`${isToday ? 'font-bold text-indigo-600' : ''} leading-tight`}>{dayNum}</span>
+                      {/* Session numbers */}
+                      {dateLessons.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
+                          {dateLessons.map((l) => (
+                            <span key={l.id} className={`text-[9px] md:text-[10px] font-bold leading-none px-1 py-0.5 rounded ${
+                              l.attendance === 'attended' ? 'text-green-700' :
+                              l.attendance === 'absent' ? 'text-red-600' :
+                              'text-blue-600'
+                            }`}>
+                              {l.session_number}회
+                            </span>
                           ))}
+                        </div>
+                      )}
+                      {/* Blinking comment badge */}
+                      {hasComment && (
+                        <div
+                          onClick={(e) => dateStr && handleCommentBadgeClick(e, dateStr)}
+                          className="absolute -top-1 -right-1 cursor-pointer"
+                        >
+                          <span className="relative flex h-4 w-4 md:h-5 md:w-5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-4 w-4 md:h-5 md:w-5 bg-purple-500 items-center justify-center">
+                              <svg className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                            </span>
+                          </span>
                         </div>
                       )}
                     </button>
@@ -455,6 +487,47 @@ export default function CalendarPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Modal (from blinking badge click) */}
+      {commentModalLesson && commentModalLesson.comment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center" onClick={() => setCommentModalLesson(null)}>
+          <div className="bg-white w-full md:max-w-lg md:rounded-xl rounded-t-xl max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-purple-50">
+              <div>
+                <h3 className="text-lg font-bold text-purple-900">수업 코멘트</h3>
+                <p className="text-sm text-purple-600">{commentModalLesson.student_name} &middot; {commentModalLesson.session_number}회차 &middot; {commentModalLesson.teacher_name}</p>
+              </div>
+              <button onClick={() => setCommentModalLesson(null)} className="text-gray-500 hover:text-gray-700 p-1">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-purple-50 rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-xs font-bold text-purple-600 mb-1">진도</p>
+                  <p className="text-sm text-gray-800">{commentModalLesson.comment.progress}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-purple-600 mb-1">숙제 평가</p>
+                  <p className="text-sm text-gray-800">{commentModalLesson.comment.homework_evaluation}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-purple-600 mb-1">잘한 점</p>
+                  <p className="text-sm text-gray-800">{commentModalLesson.comment.strengths}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-purple-600 mb-1">개선할 점</p>
+                  <p className="text-sm text-gray-800">{commentModalLesson.comment.improvements}</p>
+                </div>
+                <div className="pt-2 border-t border-purple-200">
+                  <p className="text-xs font-bold text-purple-600 mb-1">숙제</p>
+                  <p className="text-sm font-medium text-gray-900">{commentModalLesson.comment.homework}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
