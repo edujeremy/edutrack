@@ -94,8 +94,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center border-b-0">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-indigo-600">EduTrack</h1>
-            <p className="text-sm text-gray-600 mt-2">입시 컨설팅 관리 시스템</p>
+            <h1 className="text-3xl font-bold text-indigo-600">GCY EDU</h1>
+            <p className="text-sm text-gray-600 mt-2">학원 관리 시스템</p>
           </div>
         </CardHeader>
 
