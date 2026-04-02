@@ -114,7 +114,7 @@ export function consultationReminderEmail(
                 <p>문의사항이 있으시면 언제든지 문의해 주세요.</p>
             </div>
             <div class="footer">
-                <p>이 이메일은 EduTrack 시스템에서 자동으로 발송되었습니다.</p>
+                <p>이 이메일은 GCY EDU 시스템에서 자동으로 발송되었습니다.</p>
             </div>
         </div>
     </div>
@@ -235,7 +235,7 @@ export function paymentDueEmail(
                 <p>결제 관련 문의사항이 있으시면 연락주세요.</p>
             </div>
             <div class="footer">
-                <p>이 이메일은 EduTrack 시스템에서 자동으로 발송되었습니다.</p>
+                <p>이 이메일은 GCY EDU 시스템에서 자동으로 발송되었습니다.</p>
             </div>
         </div>
     </div>
@@ -348,7 +348,7 @@ export function newConsultationEmail(
                 <p>궁금한 점이 있으시면 선생님과 상담하시기 바랍니다.</p>
             </div>
             <div class="footer">
-                <p>이 이메일은 EduTrack 시스템에서 자동으로 발송되었습니다.</p>
+                <p>이 이메일은 GCY EDU 시스템에서 자동으로 발송되었습니다.</p>
             </div>
         </div>
     </div>
@@ -357,133 +357,3 @@ export function newConsultationEmail(
   `.trim()
 }
 
-export function applicationUpdateEmail(
-  studentName: string,
-  university: string,
-  status: string
-): string {
-  studentName = escapeHtml(studentName)
-  university = escapeHtml(university)
-  const statusLabel: { [key: string]: string } = {
-    draft: '작성 중',
-    submitted: '제출 완료',
-    accepted: '합격',
-    rejected: '불합격',
-    waitlisted: '대기 중',
-  }
-
-  const statusColor: { [key: string]: string } = {
-    draft: '#94a3b8',
-    submitted: '#3b82f6',
-    accepted: '#22c55e',
-    rejected: '#ef4444',
-    waitlisted: '#f59e0b',
-  }
-
-  return `
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f9fafb;
-        }
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 32px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            color: #1f2937;
-        }
-        .content {
-            margin-bottom: 24px;
-        }
-        .content p {
-            margin: 12px 0;
-        }
-        .status-box {
-            text-align: center;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        .university-name {
-            font-size: 18px;
-            color: #1f2937;
-            font-weight: bold;
-            margin-top: 12px;
-        }
-        .cta-button {
-            display: inline-block;
-            background: #3b82f6;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 500;
-            margin-top: 20px;
-        }
-        .footer {
-            text-align: center;
-            font-size: 12px;
-            color: #6b7280;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>🎓 입시 진행 상황 업데이트</h1>
-            </div>
-            <div class="content">
-                <p>안녕하세요, <strong>${studentName}</strong>님!</p>
-                <p>대학 입시 진행 상황이 업데이트되었습니다.</p>
-
-                <div class="status-box">
-                    <div class="university-name">${university}</div>
-                    <div class="status-badge" style="background-color: ${statusColor[status] || '#6b7280'}">
-                        ${statusLabel[status] || status}
-                    </div>
-                </div>
-
-                <p>입시 진행 상황의 자세한 내용은 대시보드에서 확인하실 수 있습니다.</p>
-                <p>더 이상의 업데이트를 기다리고 있겠습니다.</p>
-            </div>
-            <div class="footer">
-                <p>이 이메일은 EduTrack 시스템에서 자동으로 발송되었습니다.</p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-  `.trim()
-}

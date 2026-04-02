@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { MessageSquare, Loader2, Edit2 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ interface ConsultationRequest {
 
 export default function ConsultationsPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [consultations, setConsultations] = useState<ConsultationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -29,8 +31,15 @@ export default function ConsultationsPage() {
   >('pending');
 
   useEffect(() => {
-    fetchConsultations();
-  }, []);
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/login'); return; }
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (profile?.role !== 'admin') { router.push('/dashboard'); return; }
+      fetchConsultations();
+    };
+    checkAuth();
+  }, [router]);
 
   const fetchConsultations = async () => {
     setLoading(true);

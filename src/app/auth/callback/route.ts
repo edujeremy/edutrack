@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             const phone = metadata?.phone || ''
             // OAuth 가입자는 항상 'parent' 역할로 생성 (관리자 권한 탈취 방지)
             // 역할 변경은 admin이 직접 DB에서 수행해야 함
-            const allowedSelfRoles = ['parent', 'student'] as const
+            const allowedSelfRoles = ['parent'] as const
             const requestedRole = metadata?.role || 'parent'
             const role = allowedSelfRoles.includes(requestedRole) ? requestedRole : 'parent'
 

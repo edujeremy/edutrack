@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { CreditCard, Filter, Loader2 } from 'lucide-react';
 
@@ -20,14 +21,40 @@ interface Package {
 }
 
 export default function BillingPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' or 'unpaid'
 
   useEffect(() => {
-    fetchPackages();
-  }, []);
+    const checkAuthAndFetch = async () => {
+      // Check user role
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+
+      await fetchPackages();
+    };
+
+    checkAuthAndFetch();
+  }, [router, supabase]);
 
   const fetchPackages = async () => {
     setLoading(true);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DollarSign, Loader2, Plus } from 'lucide-react';
 
@@ -26,6 +27,7 @@ interface Settlement {
 }
 
 export default function PayPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -35,8 +37,33 @@ export default function PayPage() {
   const [periodEnd, setPeriodEnd] = useState('');
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const checkAuthAndFetch = async () => {
+      // Check user role
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+
+      await fetchData();
+    };
+
+    checkAuthAndFetch();
+  }, [router, supabase]);
 
   const fetchData = async () => {
     setLoading(true);

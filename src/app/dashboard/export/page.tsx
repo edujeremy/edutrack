@@ -1,14 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Download, Loader2, Calendar } from 'lucide-react';
 
 export default function ExportPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Check user role
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+    };
+
+    checkAuth();
+  }, [router, supabase]);
 
   const downloadCSV = (filename: string, csv: string) => {
     const BOM = '\uFEFF';

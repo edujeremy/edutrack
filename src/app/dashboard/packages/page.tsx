@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
 
@@ -46,6 +47,7 @@ interface FormData {
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
 export default function PackagesPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,27 @@ export default function PackagesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+
+        // Check user role
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
 
         // Fetch packages with related data
         const { data: packagesData, error: packagesError } = await supabase
@@ -148,7 +171,7 @@ export default function PackagesPage() {
     };
 
     fetchData();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const resetForm = () => {
     setFormData({

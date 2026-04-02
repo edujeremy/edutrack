@@ -287,68 +287,93 @@ export default function DashboardPage() {
 
   const loadParentDashboard = async (parentId: string) => {
     try {
-      // Get child's upcoming lessons
-      const { data: childLessons } = await supabase
-        .from('lessons')
-        .select(
-          `
-          id,
-          lesson_date,
-          start_time,
-          end_time,
-          packages(students(name), students(id))
-        `
-        )
-        .eq('packages.student_id', parentId)
-        .gte('lesson_date', new Date().toISOString().split('T')[0])
-        .eq('attendance', 'scheduled')
-        .order('lesson_date')
-        .limit(5);
+      // 1. 먼저 학부모의 자녀 목록 조회
+      const { data: myStudents } = await supabase
+        .from('students')
+        .select('id, name')
+        .eq('parent_id', parentId);
 
-      const formattedChildLessons = childLessons?.map((l: any) => ({
-        id: l.id,
-        student_name: l.packages?.students?.name || 'Unknown',
-        start_time: l.start_time || '',
-        end_time: l.end_time || '',
-        lesson_date: l.lesson_date || '',
-      })) || [];
-      setChildUpcomingLessons(formattedChildLessons);
+      const studentIds = myStudents?.map(s => s.id) || [];
 
-      // Get child's recent approved comments
-      const { data: childComments } = await supabase
-        .from('comments')
-        .select(
-          `
-          id,
-          progress,
-          sent_to_parent_at,
-          lessons(lesson_date, session_number, packages(students(name))),
-          profiles(name)
-        `
-        )
-        .eq('status', 'approved')
-        .eq('lessons.packages.student_id', parentId)
-        .order('sent_to_parent_at', { ascending: false })
-        .limit(5);
+      if (studentIds.length === 0) {
+        // 자녀가 없으면 빈 상태
+        setChildUpcomingLessons([]);
+        setChildRecentComments([]);
+        setPackageProgress([]);
+        return;
+      }
 
-      const formattedChildComments = childComments?.map((c: any) => ({
-        id: c.id,
-        student_name: c.lessons?.packages?.students?.name || 'Unknown',
-        teacher_name: c.profiles?.name || 'Unknown',
-        lesson_date: c.lessons?.lesson_date || '',
-        session_number: c.lessons?.session_number || 0,
-        progress: c.progress || '',
-      })) || [];
-      setChildRecentComments(formattedChildComments);
-
-      // Get package progress
-      const { data: packages } = await supabase
+      // 2. 자녀의 패키지 ID 조회
+      const { data: studentPackages } = await supabase
         .from('packages')
-        .select('*')
-        .eq('student_id', parentId)
-        .eq('status', 'active');
+        .select('id, name, student_id, total_sessions, completed_sessions, status')
+        .in('student_id', studentIds);
 
-      setPackageProgress(packages || []);
+      const packageIds = studentPackages?.map(p => p.id) || [];
+
+      // 3. 예정된 수업 조회
+      if (packageIds.length > 0) {
+        const { data: childLessons } = await supabase
+          .from('lessons')
+          .select('id, lesson_date, start_time, end_time, package_id')
+          .in('package_id', packageIds)
+          .gte('lesson_date', new Date().toISOString().split('T')[0])
+          .eq('attendance', 'scheduled')
+          .order('lesson_date')
+          .limit(5);
+
+        const pkgMap = new Map(studentPackages?.map(p => [p.id, p.student_id]) || []);
+        const studentMap = new Map(myStudents?.map(s => [s.id, s.name]) || []);
+
+        const formattedChildLessons = childLessons?.map((l: any) => {
+          const studentId = pkgMap.get(l.package_id);
+          return {
+            id: l.id,
+            student_name: studentId ? studentMap.get(studentId) || '-' : '-',
+            start_time: l.start_time || '',
+            end_time: l.end_time || '',
+            lesson_date: l.lesson_date || '',
+          };
+        }) || [];
+        setChildUpcomingLessons(formattedChildLessons);
+
+        // 4. 최근 승인된 코멘트 조회
+        const { data: lessonIds } = await supabase
+          .from('lessons')
+          .select('id')
+          .in('package_id', packageIds);
+
+        const allLessonIds = lessonIds?.map(l => l.id) || [];
+
+        if (allLessonIds.length > 0) {
+          const { data: childComments } = await supabase
+            .from('comments')
+            .select('id, progress, sent_to_parent_at, lesson_id, teacher_id, profiles:teacher_id(name)')
+            .eq('status', 'approved')
+            .in('lesson_id', allLessonIds)
+            .order('sent_to_parent_at', { ascending: false })
+            .limit(5);
+
+          const formattedChildComments = childComments?.map((c: any) => ({
+            id: c.id,
+            student_name: myStudents?.[0]?.name || '-',
+            teacher_name: c.profiles?.name || '-',
+            lesson_date: '',
+            session_number: 0,
+            progress: c.progress || '',
+          })) || [];
+          setChildRecentComments(formattedChildComments);
+        } else {
+          setChildRecentComments([]);
+        }
+      } else {
+        setChildUpcomingLessons([]);
+        setChildRecentComments([]);
+      }
+
+      // 5. 패키지 진행상황
+      const activePackages = studentPackages?.filter(p => p.status === 'active') || [];
+      setPackageProgress(activePackages);
     } catch (err) {
       console.error('Error loading parent dashboard:', err);
     }

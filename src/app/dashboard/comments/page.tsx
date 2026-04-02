@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, X } from 'lucide-react';
 
@@ -21,6 +22,7 @@ interface Comment {
 }
 
 export default function CommentsPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,27 @@ export default function CommentsPage() {
     const fetchComments = async () => {
       try {
         setLoading(true);
+
+        // Check user role
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
         const { data: commentsData, error: fetchError } = await supabase
           .from('comments')
           .select(
@@ -81,7 +104,7 @@ export default function CommentsPage() {
     };
 
     fetchComments();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const handleApprove = async (commentId: string) => {
     try {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Calendar, Filter, Loader2 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ interface Lesson {
 }
 
 export default function LessonsPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +41,34 @@ export default function LessonsPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchLessons();
-    fetchFilters();
-  }, []);
+    const checkAuthAndFetch = async () => {
+      // Check user role
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+
+      await fetchLessons();
+      await fetchFilters();
+    };
+
+    checkAuthAndFetch();
+  }, [router, supabase]);
 
   const fetchFilters = async () => {
     const { data: studentsData } = await supabase

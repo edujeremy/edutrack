@@ -5,7 +5,6 @@ import {
   consultationReminderEmail,
   paymentDueEmail,
   newConsultationEmail,
-  applicationUpdateEmail,
 } from '@/lib/email/templates'
 
 const resend = process.env.RESEND_API_KEY
@@ -16,7 +15,6 @@ type EmailTemplate =
   | 'consultation_reminder'
   | 'payment_due'
   | 'new_consultation'
-  | 'application_update'
 
 interface EmailRequest {
   to: string
@@ -78,14 +76,6 @@ export async function POST(request: NextRequest) {
           data.studentName,
           data.teacherName,
           data.type
-        )
-        break
-
-      case 'application_update':
-        html = applicationUpdateEmail(
-          data.studentName,
-          data.university,
-          data.status
         )
         break
 

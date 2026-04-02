@@ -11,8 +11,6 @@ import {
   User,
   Lock,
   Bell,
-  Shield,
-  Users,
   Loader,
   Check,
   AlertCircle,
@@ -22,7 +20,10 @@ type NotificationPreference = {
   consultation_reminder: boolean
   payment_due: boolean
   new_consultation: boolean
-  application_update: boolean
+  comment_approved: boolean
+  lesson_reminder: boolean
+  absence_request: boolean
+  pay_settlement: boolean
 }
 
 export default function SettingsPage() {
@@ -52,7 +53,10 @@ export default function SettingsPage() {
       consultation_reminder: true,
       payment_due: true,
       new_consultation: true,
-      application_update: true,
+      comment_approved: true,
+      lesson_reminder: true,
+      absence_request: true,
+      pay_settlement: true,
     })
 
   // Load profile
@@ -252,9 +256,24 @@ export default function SettingsPage() {
       description: '새로운 상담이 등록되면 알림을 받습니다.',
     },
     {
-      key: 'application_update',
-      label: '입시 진행 상황 업데이트',
-      description: '대학 입시 진행 상황이 업데이트되면 알림을 받습니다.',
+      key: 'comment_approved',
+      label: '코멘트 승인 알림',
+      description: '작성한 코멘트가 승인되면 알림을 받습니다.',
+    },
+    {
+      key: 'lesson_reminder',
+      label: '수업 리마인더',
+      description: '예정된 수업 시간 전에 알림을 받습니다.',
+    },
+    {
+      key: 'absence_request',
+      label: '결석/변경 요청 알림',
+      description: '결석이나 수업 변경 요청이 있을 때 알림을 받습니다.',
+    },
+    {
+      key: 'pay_settlement',
+      label: '정산 알림',
+      description: '정산 내역이 있을 때 알림을 받습니다.',
     },
   ]
 
@@ -469,47 +488,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Admin Section */}
-      {(profile.role === 'admin' || profile.role === 'manager') && (
-        <section className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Shield className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">관리자 설정</h2>
-          </div>
-
-          <div className="space-y-3">
-            <a
-              href="/dashboard/admin"
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-gray-600" />
-                <div>
-                  <p className="font-medium text-gray-900">강사 관리</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    강사 계정을 생성하고 관리합니다.
-                  </p>
-                </div>
-              </div>
-            </a>
-
-            <a
-              href="/dashboard/admin"
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-gray-600" />
-                <div>
-                  <p className="font-medium text-gray-900">학부모 관리</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    학부모 계정을 생성하고 관리합니다.
-                  </p>
-                </div>
-              </div>
-            </a>
-          </div>
-        </section>
-      )}
     </div>
   )
 }
@@ -517,9 +495,7 @@ export default function SettingsPage() {
 function getRoleLabel(role: Role): string {
   const labels: Record<Role, string> = {
     admin: '관리자',
-    manager: '매니저',
     teacher: '강사',
-    student: '학생',
     parent: '학부모',
   }
   return labels[role] || role

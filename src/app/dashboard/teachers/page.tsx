@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
 
@@ -29,6 +30,7 @@ interface FormData {
 }
 
 export default function TeachersPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,27 @@ export default function TeachersPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+
+        // Check user role
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
 
         // Fetch teachers with their profile info
         const { data: teachersData, error: teachersError } = await supabase
@@ -89,7 +112,7 @@ export default function TeachersPage() {
     };
 
     fetchData();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const resetForm = () => {
     setFormData({

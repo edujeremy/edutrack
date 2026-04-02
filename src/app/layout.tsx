@@ -8,8 +8,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'EduTrack - 입시 컨설팅 관리',
-  description: '대학 입시 컨설팅 및 학원 관리를 위한 통합 플랫폼',
+  title: 'GCY EDU - 학원 관리 시스템',
+  description: '학원 관리를 위한 통합 플랫폼',
 }
 
 export default function RootLayout({

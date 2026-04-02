@@ -137,41 +137,24 @@ export default function SignupPage() {
           return
         }
 
-        // 학부모인 경우: 자녀 프로필 + 학생 레코드 생성
+        // 학부모인 경우: 자녀 학생 레코드 생성 (v2: students 테이블에 직접 추가)
         if (formData.role === 'parent' && formData.childName) {
-          // 1. 자녀 프로필 생성 (role: student)
-          const { data: childProfile, error: childProfileError } = await supabase
-            .from('profiles')
+          const { error: studentError } = await supabase
+            .from('students')
             .insert({
               name: formData.childName,
-              email: `${formData.childName.replace(/\s/g, '')}_${Date.now()}@student.edutrack.local`,
-              role: 'student' as const,
+              school: formData.childSchool || null,
+              grade: formData.childGrade && !isNaN(parseInt(formData.childGrade)) ? parseInt(formData.childGrade) : null,
+              parent_id: data.user.id,
+              parent_name: formData.fullName,
+              parent_phone: formData.phone,
+              parent_email: formData.email,
+              status: 'active',
             })
-            .select()
-            .single()
 
-          if (childProfileError) {
-            console.error('Child profile creation error:', childProfileError)
-            // 학부모 가입은 완료 - 자녀 등록은 나중에 관리자가 할 수 있음
+          if (studentError) {
+            console.error('Student record creation error:', studentError)
             toast.success('회원가입 완료! 자녀 등록은 관리자에게 문의해주세요.')
-          } else if (childProfile) {
-            // 2. 학생 레코드 생성
-            const { error: studentError } = await supabase
-              .from('students')
-              .insert({
-                profile_id: childProfile.id,
-                school: formData.childSchool || null,
-                grade: formData.childGrade && !isNaN(parseInt(formData.childGrade)) ? parseInt(formData.childGrade) : null,
-                parent_name: formData.fullName,
-                parent_phone: formData.phone,
-                parent_email: formData.email,
-                enrollment_date: new Date().toISOString().split('T')[0],
-                status: 'active',
-              })
-
-            if (studentError) {
-              console.error('Student record creation error:', studentError)
-            }
           }
         }
       }
@@ -232,7 +215,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center border-b-0">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-indigo-600">EduTrack</h1>
+            <h1 className="text-3xl font-bold text-indigo-600">GCY EDU</h1>
             <p className="text-sm text-gray-600 mt-2">회원가입</p>
           </div>
         </CardHeader>
