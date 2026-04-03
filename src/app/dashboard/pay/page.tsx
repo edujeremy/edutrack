@@ -112,10 +112,14 @@ export default function PayPage() {
         for (const lesson of lessons as any[]) {
           if (!lesson.is_teacher_payable) continue;
 
-          const approvedComment = lesson.comments?.find((c: any) => c.status === 'approved');
+          // comments can be array or single object depending on Supabase response
+          const commentsArr = Array.isArray(lesson.comments) ? lesson.comments : lesson.comments ? [lesson.comments] : [];
+          const approvedComment = commentsArr.find((c: any) => c.status === 'approved');
           if (!approvedComment) continue;
 
-          const studentName = lesson.packages?.students?.name || '알 수 없음';
+          // packages with !inner can be object or array
+          const pkg = Array.isArray(lesson.packages) ? lesson.packages[0] : lesson.packages;
+          const studentName = pkg?.students?.name || '알 수 없음';
           const isSettled = lastSettledDate ? lesson.lesson_date <= lastSettledDate : false;
 
           // Also check pending settlements
