@@ -613,22 +613,22 @@ export default function DashboardPage() {
         <div className="space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+            <Link href="/dashboard/comments" className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer block">
               <div className="text-gray-500 text-sm font-medium">승인 대기 중인 코멘트</div>
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingCommentsCount}</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+            </Link>
+            <Link href="/dashboard/students" className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer block">
               <div className="text-gray-500 text-sm font-medium">활성 학생</div>
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.activeStudentsCount}</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+            </Link>
+            <Link href="/dashboard/calendar" className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer block">
               <div className="text-gray-500 text-sm font-medium">오늘 예정 수업</div>
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.upcomingLessonsCount}</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+            </Link>
+            <Link href="/dashboard/billing" className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer block">
               <div className="text-gray-500 text-sm font-medium">미납 수강료</div>
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.unpaidTuitionCount}</div>
-            </div>
+            </Link>
           </div>
 
           {/* Quick Actions - 수강료 처리 & 강사지급 */}
