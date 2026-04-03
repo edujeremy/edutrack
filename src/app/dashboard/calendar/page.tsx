@@ -595,7 +595,7 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">수강료</span>
-                  <span className="text-2xl font-bold text-green-600">${(tuitionPopupPkg.tuition_fee || 0).toLocaleString()}</span>
+                  <span className="text-2xl font-bold text-green-600">${(tuitionPopupPkg.tuition_amount || 0).toLocaleString()}</span>
                 </div>
               </div>
               <p className="text-sm text-gray-600 text-center">
