@@ -99,6 +99,15 @@ interface PaySettlement {
   status: string;
 }
 
+interface TeacherCommentStat {
+  teacher_name: string;
+  total_attended: number;
+  comments_written: number;
+  comments_approved: number;
+  comments_pending: number;
+  overdue: number;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -125,6 +134,12 @@ export default function DashboardPage() {
   const [pendingCommentLessons, setPendingCommentLessons] = useState<UpcomingLesson[]>([]);
   const [paySettlements, setPaySettlements] = useState<PaySettlement[]>([]);
   const [studentSessionCounts, setStudentSessionCounts] = useState<StudentSessionCount[]>([]);
+
+  // Teacher alert
+  const [showCommentAlert, setShowCommentAlert] = useState(true);
+
+  // Admin teacher comment stats
+  const [teacherCommentStats, setTeacherCommentStats] = useState<TeacherCommentStat[]>([]);
 
   // Parent data
   const [childUpcomingLessons, setChildUpcomingLessons] = useState<UpcomingLesson[]>([]);
@@ -356,6 +371,51 @@ export default function DashboardPage() {
         created_at: c.created_at,
       })) || [];
       setConsultationItems(formattedConsult);
+
+      // Teacher comment stats (강사별 코멘트 현황)
+      const { data: allTeachers } = await supabase
+        .from('teachers')
+        .select('id, profile_id, profiles(name)');
+
+      if (allTeachers) {
+        const commentStats: TeacherCommentStat[] = [];
+        for (const t of allTeachers as any[]) {
+          // Get attended lessons for this teacher
+          const { data: attendedLessons } = await supabase
+            .from('lessons')
+            .select('id, packages!inner(teacher_id), comments(id, status)')
+            .eq('packages.teacher_id', t.id)
+            .eq('attendance', 'attended');
+
+          const lessons = attendedLessons || [];
+          const totalAttended = lessons.length;
+          let written = 0;
+          let approved = 0;
+          let pending = 0;
+          let overdue = 0;
+
+          for (const lesson of lessons as any[]) {
+            const comments = Array.isArray(lesson.comments) ? lesson.comments : lesson.comments ? [lesson.comments] : [];
+            if (comments.length > 0) {
+              written++;
+              if (comments.some((c: any) => c.status === 'approved')) approved++;
+              if (comments.some((c: any) => c.status === 'pending')) pending++;
+            } else {
+              overdue++;
+            }
+          }
+
+          commentStats.push({
+            teacher_name: t.profiles?.name || 'N/A',
+            total_attended: totalAttended,
+            comments_written: written,
+            comments_approved: approved,
+            comments_pending: pending,
+            overdue,
+          });
+        }
+        setTeacherCommentStats(commentStats);
+      }
     } catch (err) {
       console.error('Error loading admin dashboard:', err);
     }
@@ -631,6 +691,48 @@ export default function DashboardPage() {
             </Link>
           </div>
 
+          {/* 강사별 코멘트 관리 현황 */}
+          {teacherCommentStats.length > 0 && (
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">강사별 코멘트 현황</h2>
+                <Link href="/dashboard/comments" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  전체보기 &rarr;
+                </Link>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {teacherCommentStats.map((stat, idx) => {
+                    const completionRate = stat.total_attended > 0
+                      ? Math.round((stat.comments_written / stat.total_attended) * 100)
+                      : 0;
+                    return (
+                      <div key={idx} className={`border rounded-lg p-4 ${stat.overdue > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="font-semibold text-gray-900">{stat.teacher_name}</div>
+                          <div className={`text-lg font-bold ${stat.overdue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {stat.comments_written}/{stat.total_attended}
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                          <div
+                            className={`h-2 rounded-full transition-all ${stat.overdue > 0 ? 'bg-red-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(completionRate, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>승인: <strong className="text-green-700">{stat.comments_approved}</strong></span>
+                          <span>대기: <strong className="text-yellow-700">{stat.comments_pending}</strong></span>
+                          <span>미작성: <strong className={stat.overdue > 0 ? 'text-red-700' : 'text-gray-700'}>{stat.overdue}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Quick Actions - 수강료 처리 & 강사지급 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 수강료 처리 */}
@@ -844,6 +946,48 @@ export default function DashboardPage() {
 
       {user?.role === 'teacher' && (
         <div className="space-y-6">
+          {/* Overdue Comment Alert Popup */}
+          {showCommentAlert && pendingCommentLessons.length > 0 && (
+            <div className="bg-red-50 border-2 border-red-400 rounded-xl p-5 shadow-lg animate-pulse-slow relative">
+              <button
+                onClick={() => setShowCommentAlert(false)}
+                className="absolute top-3 right-3 text-red-400 hover:text-red-600 text-xl font-bold"
+              >
+                ✕
+              </button>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-red-800 mb-1">
+                    미작성 코멘트 {pendingCommentLessons.length}건이 있습니다!
+                  </h3>
+                  <p className="text-sm text-red-600 mb-3">
+                    다음 수업 시작 전까지 코멘트를 작성해주세요. 코멘트 승인 후 페이가 정산됩니다.
+                  </p>
+                  <div className="space-y-2">
+                    {pendingCommentLessons.slice(0, 3).map(lesson => (
+                      <div key={lesson.id} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-red-200">
+                        <span className="text-sm font-semibold text-gray-800">{lesson.student_name}</span>
+                        <span className="text-xs text-gray-500">{lesson.lesson_date}</span>
+                      </div>
+                    ))}
+                    {pendingCommentLessons.length > 3 && (
+                      <p className="text-xs text-red-500">외 {pendingCommentLessons.length - 3}건 더...</p>
+                    )}
+                  </div>
+                  <Link
+                    href="/dashboard/my-comments"
+                    className="inline-block mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    지금 작성하기 →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Student Session Counts */}
           {studentSessionCounts.length > 0 && (
             <div className="bg-white rounded-lg shadow">
