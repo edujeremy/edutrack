@@ -373,7 +373,7 @@ export default function DashboardPage() {
           lesson_date,
           start_time,
           end_time,
-          packages(student_id, students(name))
+          packages!inner(student_id, teacher_id, students(name))
         `
         )
         .eq('packages.teacher_id', teacherId)
@@ -400,7 +400,7 @@ export default function DashboardPage() {
           start_time,
           end_time,
           session_number,
-          packages(student_id, students(name)),
+          packages!inner(student_id, teacher_id, students(name)),
           comments(id)
         `
         )
