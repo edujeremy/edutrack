@@ -421,8 +421,21 @@ export default function DashboardPage() {
     }
   };
 
-  const loadTeacherDashboard = async (teacherId: string) => {
+  const loadTeacherDashboard = async (profileId: string) => {
     try {
+      // First, look up teacher record from profile_id
+      const { data: teacherRecord } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('profile_id', profileId)
+        .maybeSingle();
+
+      const teacherTableId = teacherRecord?.id;
+      if (!teacherTableId) {
+        console.error('Teacher record not found for profile:', profileId);
+        return;
+      }
+
       // Get upcoming lessons today
       const today = new Date().toISOString().split('T')[0];
       const { data: lessonsData } = await supabase
@@ -436,7 +449,7 @@ export default function DashboardPage() {
           packages!inner(student_id, teacher_id, students(name))
         `
         )
-        .eq('packages.teacher_id', teacherId)
+        .eq('packages.teacher_id', teacherTableId)
         .eq('lesson_date', today)
         .eq('attendance', 'scheduled')
         .order('start_time');
@@ -464,12 +477,15 @@ export default function DashboardPage() {
           comments(id)
         `
         )
-        .eq('packages.teacher_id', teacherId)
+        .eq('packages.teacher_id', teacherTableId)
         .eq('attendance', 'attended')
         .order('lesson_date', { ascending: false })
-        .limit(10);
+        .limit(20);
 
-      const pendingLessons = pendingData?.filter((l: any) => l.comments?.length === 0).map((l: any) => ({
+      const pendingLessons = pendingData?.filter((l: any) => {
+        const comments = Array.isArray(l.comments) ? l.comments : l.comments ? [l.comments] : [];
+        return comments.length === 0;
+      }).map((l: any) => ({
         id: l.id,
         student_name: l.packages?.students?.name || 'Unknown',
         start_time: l.start_time || '',
@@ -482,7 +498,7 @@ export default function DashboardPage() {
       const { data: settlementData } = await supabase
         .from('teacher_pay_settlements')
         .select('*')
-        .eq('teacher_id', teacherId)
+        .eq('teacher_id', teacherTableId)
         .order('period_end', { ascending: false })
         .limit(5);
 
@@ -496,18 +512,12 @@ export default function DashboardPage() {
       })) || [];
       setPaySettlements(formattedSettlements);
 
-      // Get student session counts for this teacher
-      const { data: teacherRecord } = await supabase
-        .from('teachers')
-        .select('id')
-        .eq('profile_id', teacherId)
-        .maybeSingle();
-
-      if (teacherRecord) {
+      // Get student session counts for this teacher (reuse teacherTableId)
+      {
         const { data: myPackages } = await supabase
           .from('packages')
           .select('id, name, total_sessions, student_id, students(name)')
-          .eq('teacher_id', teacherRecord.id)
+          .eq('teacher_id', teacherTableId)
           .eq('status', 'active');
 
         if (myPackages && myPackages.length > 0) {
