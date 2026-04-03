@@ -94,7 +94,7 @@ export default function PayPage() {
         .select(`
           id, lesson_date, session_number, is_teacher_payable,
           packages!inner(teacher_id, students(name)),
-          comments(status, approved_at, created_at)
+          comments(status, reviewed_at, created_at)
         `)
         .eq('packages.teacher_id', teacher.id)
         .in('attendance', ['attended', 'absent']);
@@ -130,7 +130,7 @@ export default function PayPage() {
             lesson_date: lesson.lesson_date,
             student_name: studentName,
             session_number: lesson.session_number,
-            comment_approved_at: approvedComment.approved_at || approvedComment.created_at,
+            comment_approved_at: approvedComment.reviewed_at || approvedComment.created_at,
             is_settled: isSettled || inPendingSettlement,
           });
         }
