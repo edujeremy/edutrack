@@ -309,7 +309,7 @@ export default function CalendarPage() {
                               l.attendance === 'absent' ? 'text-red-600' :
                               'text-blue-600'
                             }`}>
-                              {l.session_number}회
+                              {l.attendance === 'absent' && (l as any).absence_type === 'excused' ? '결석' : `${l.session_number}회`}
                             </span>
                           ))}
                         </div>
@@ -454,14 +454,25 @@ export default function CalendarPage() {
                       <div>
                         <p className="font-bold text-gray-900 text-lg">{lesson.student_name}</p>
                         <p className="text-sm text-gray-600">{lesson.package_name}</p>
-                        <p className="text-sm text-gray-500 mt-1">{lesson.session_number}회차 &middot; {lesson.teacher_name} &middot; {lesson.start_time}~{lesson.end_time}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {lesson.attendance === 'absent' && (lesson as any).absence_type === 'excused'
+                            ? '결석인정'
+                            : `${lesson.session_number}회차`
+                          } &middot; {lesson.teacher_name} &middot; {lesson.start_time}~{lesson.end_time}
+                        </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                         lesson.attendance === 'attended' ? 'bg-green-200 text-green-800' :
+                        lesson.attendance === 'absent' && (lesson as any).absence_type === 'noshow' ? 'bg-orange-200 text-orange-800' :
                         lesson.attendance === 'absent' ? 'bg-red-200 text-red-800' :
                         'bg-blue-200 text-blue-800'
                       }`}>
-                        {lesson.attendance === 'attended' ? '출석' : lesson.attendance === 'absent' ? '결석' : '예정'}
+                        {lesson.attendance === 'attended' ? '출석'
+                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'noshow' ? '노쇼'
+                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'excused' ? '결석'
+                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'makeup' ? '보강예정'
+                          : lesson.attendance === 'absent' ? '결석'
+                          : '예정'}
                       </span>
                     </div>
 

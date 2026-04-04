@@ -44,6 +44,11 @@ interface AbsentLesson {
   teacher_name: string;
   is_billable: boolean;
   is_teacher_payable: boolean;
+  absence_type: string | null;
+  makeup_date: string | null;
+  makeup_start_time: string | null;
+  makeup_end_time: string | null;
+  makeup_status: string | null;
 }
 
 interface ConsultationItem {
@@ -330,11 +335,12 @@ export default function DashboardPage() {
         .from('lessons')
         .select(`
           id, lesson_date, session_number, is_billable, is_teacher_payable,
+          absence_type, makeup_date, makeup_start_time, makeup_end_time, makeup_status,
           packages(students(name), teachers(profiles(name)))
         `)
         .eq('attendance', 'absent')
         .order('lesson_date', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       const formattedAbsent = absentData?.map((l: any) => ({
         id: l.id,
@@ -344,6 +350,11 @@ export default function DashboardPage() {
         teacher_name: l.packages?.teachers?.profiles?.name || 'Unknown',
         is_billable: l.is_billable,
         is_teacher_payable: l.is_teacher_payable,
+        absence_type: l.absence_type,
+        makeup_date: l.makeup_date,
+        makeup_start_time: l.makeup_start_time,
+        makeup_end_time: l.makeup_end_time,
+        makeup_status: l.makeup_status,
       })) || [];
       setAbsentLessons(formattedAbsent);
 
@@ -645,14 +656,57 @@ export default function DashboardPage() {
     }
   };
 
-  const toggleBillable = async (lessonId: string, current: boolean) => {
-    await supabase.from('lessons').update({ is_billable: !current }).eq('id', lessonId);
-    setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, is_billable: !current } : l));
+  // Absence type handlers
+  const setAbsenceType = async (lessonId: string, type: 'noshow' | 'excused' | 'makeup') => {
+    const updates: any = { absence_type: type };
+    if (type === 'noshow') {
+      updates.is_billable = true;
+      updates.is_teacher_payable = true;
+    } else if (type === 'excused') {
+      updates.is_billable = false;
+      updates.is_teacher_payable = false;
+    } else if (type === 'makeup') {
+      updates.is_billable = false;
+      updates.is_teacher_payable = false;
+      updates.makeup_status = 'requested';
+    }
+    await supabase.from('lessons').update(updates).eq('id', lessonId);
+    setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, ...updates } : l));
   };
 
-  const toggleTeacherPayable = async (lessonId: string, current: boolean) => {
-    await supabase.from('lessons').update({ is_teacher_payable: !current }).eq('id', lessonId);
-    setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, is_teacher_payable: !current } : l));
+  // Makeup scheduling
+  const [makeupModal, setMakeupModal] = useState<{ lesson: AbsentLesson; date: string; startTime: string; endTime: string } | null>(null);
+
+  const openMakeupModal = (lesson: AbsentLesson) => {
+    setMakeupModal({
+      lesson,
+      date: lesson.makeup_date || '',
+      startTime: lesson.makeup_start_time || '',
+      endTime: lesson.makeup_end_time || '',
+    });
+  };
+
+  const saveMakeupSchedule = async () => {
+    if (!makeupModal || !makeupModal.date || !makeupModal.startTime || !makeupModal.endTime) {
+      alert('날짜와 시간을 모두 입력해주세요');
+      return;
+    }
+    await supabase.from('lessons').update({
+      makeup_date: makeupModal.date,
+      makeup_start_time: makeupModal.startTime,
+      makeup_end_time: makeupModal.endTime,
+      makeup_status: 'scheduled',
+    }).eq('id', makeupModal.lesson.id);
+
+    setAbsentLessons(prev => prev.map(l => l.id === makeupModal.lesson.id ? {
+      ...l,
+      makeup_date: makeupModal.date,
+      makeup_start_time: makeupModal.startTime,
+      makeup_end_time: makeupModal.endTime,
+      makeup_status: 'scheduled',
+    } : l));
+    setMakeupModal(null);
+    alert('보강 일정이 확정되었습니다.');
   };
 
   if (loading) {
@@ -843,7 +897,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Absent Lessons - Billing & Pay Management */}
+          {/* Absent Lessons Management */}
           <div className="bg-white rounded-lg shadow">
             <div className="border-b border-gray-200 p-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">결석 수업 관리</h2>
@@ -854,44 +908,141 @@ export default function DashboardPage() {
             <div className="p-6">
               {absentLessons.length > 0 ? (
                 <div className="space-y-3">
-                  {absentLessons.map(lesson => (
-                    <div key={lesson.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900">{lesson.student_name}</div>
-                          <div className="text-sm text-gray-500">{lesson.lesson_date} &middot; {lesson.session_number}회차 &middot; {lesson.teacher_name}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggleBillable(lesson.id, lesson.is_billable)}
-                            className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
-                              lesson.is_billable
-                                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                            }`}
-                          >
-                            수강료 {lesson.is_billable ? '청구' : '미청구'}
-                          </button>
-                          <button
-                            onClick={() => toggleTeacherPayable(lesson.id, lesson.is_teacher_payable)}
-                            className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors ${
-                              lesson.is_teacher_payable
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                            }`}
-                          >
-                            강사료 {lesson.is_teacher_payable ? '지급' : '미지급'}
-                          </button>
+                  {absentLessons.map(lesson => {
+                    const typeLabel = lesson.absence_type === 'noshow' ? '노쇼'
+                      : lesson.absence_type === 'excused' ? '결석인정'
+                      : lesson.absence_type === 'makeup' ? '보강요청'
+                      : '미분류';
+                    const typeColor = lesson.absence_type === 'noshow' ? 'bg-red-100 text-red-700'
+                      : lesson.absence_type === 'excused' ? 'bg-gray-100 text-gray-600'
+                      : lesson.absence_type === 'makeup' ? 'bg-purple-100 text-purple-700'
+                      : 'bg-yellow-100 text-yellow-700';
+
+                    return (
+                      <div key={lesson.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900">{lesson.student_name}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}`}>{typeLabel}</span>
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              {lesson.lesson_date} · {lesson.session_number}회차 · {lesson.teacher_name}
+                            </div>
+                            {/* Makeup schedule info */}
+                            {lesson.absence_type === 'makeup' && lesson.makeup_status === 'scheduled' && lesson.makeup_date && (
+                              <div className="text-sm text-purple-600 mt-1 font-medium">
+                                보강확정: {lesson.makeup_date} {lesson.makeup_start_time}~{lesson.makeup_end_time}
+                              </div>
+                            )}
+                            {lesson.absence_type === 'makeup' && lesson.makeup_status === 'requested' && (
+                              <div className="text-sm text-orange-600 mt-1">보강 일정 미확정</div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {/* Absence type buttons */}
+                            <button
+                              onClick={() => setAbsenceType(lesson.id, 'noshow')}
+                              className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors ${
+                                lesson.absence_type === 'noshow'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-700'
+                              }`}
+                            >
+                              노쇼
+                            </button>
+                            <button
+                              onClick={() => setAbsenceType(lesson.id, 'excused')}
+                              className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors ${
+                                lesson.absence_type === 'excused'
+                                  ? 'bg-gray-600 text-white'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}
+                            >
+                              결석인정
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (lesson.absence_type !== 'makeup') setAbsenceType(lesson.id, 'makeup');
+                                openMakeupModal(lesson);
+                              }}
+                              className={`px-2.5 py-1 text-xs rounded-lg font-semibold transition-colors ${
+                                lesson.absence_type === 'makeup'
+                                  ? 'bg-purple-500 text-white'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-purple-100 hover:text-purple-700'
+                              }`}
+                            >
+                              보강
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-gray-500">결석 수업이 없습니다</p>
               )}
             </div>
           </div>
+
+          {/* Makeup Schedule Modal */}
+          {makeupModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMakeupModal(null)} />
+              <div className="relative bg-white rounded-lg shadow-lg w-full max-w-sm mx-4 p-6">
+                <h3 className="text-lg font-bold mb-1">보강 일정 설정</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  {makeupModal.lesson.student_name} · {makeupModal.lesson.session_number}회차
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">보강 날짜</label>
+                    <input
+                      type="date"
+                      value={makeupModal.date}
+                      onChange={(e) => setMakeupModal({ ...makeupModal, date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">시작</label>
+                      <input
+                        type="time"
+                        value={makeupModal.startTime}
+                        onChange={(e) => setMakeupModal({ ...makeupModal, startTime: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종료</label>
+                      <input
+                        type="time"
+                        value={makeupModal.endTime}
+                        onChange={(e) => setMakeupModal({ ...makeupModal, endTime: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => setMakeupModal(null)}
+                      className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={saveMakeupSchedule}
+                      className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
+                    >
+                      보강 확정
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Consultation Requests (상담 요청) */}
           <div className="bg-white rounded-lg shadow">

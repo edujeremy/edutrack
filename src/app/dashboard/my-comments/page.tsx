@@ -143,7 +143,12 @@ export default function MyCommentsPage() {
       (studentsData || []).map((s: any) => [s.id, s.name])
     )
 
-    const enrichedLessons = lessonData.map((lesson: Lesson) => {
+    // Filter out excused absences (no comment needed for those)
+    const filteredLessons = lessonData.filter((l: any) =>
+      !(l.attendance === 'absent' && l.absence_type === 'excused')
+    )
+
+    const enrichedLessons = filteredLessons.map((lesson: Lesson) => {
       const pkg = packages.find((p: Package) => p.id === lesson.package_id)
       const comment = (commentData || []).find((c: Comment) => c.lesson_id === lesson.id)
       return {
