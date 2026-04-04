@@ -357,7 +357,7 @@ export default function MyCommentsPage() {
                             </span>
                           </>
                         )
-                      )
+                      )}
                     </div>
                   </div>
 
@@ -494,3 +494,4 @@ export default function MyCommentsPage() {
     </div>
   )
 }
+
