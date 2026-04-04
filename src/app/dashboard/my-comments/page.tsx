@@ -247,9 +247,9 @@ export default function MyCommentsPage() {
     if (!comment) return { label: '미작성', color: 'bg-gray-100 text-gray-600', borderColor: 'border-l-4 border-gray-300' }
     switch (comment.status) {
       case 'approved':
-        return { label: '승인완료', color: 'bg-green-100 text-green-700', borderColor: 'border-l-4 border-green-500' }
+        return { label: '제출완료', color: 'bg-green-100 text-green-700', borderColor: 'border-l-4 border-green-500' }
       case 'submitted':
-        return { label: '제출완료', color: 'bg-blue-100 text-blue-700', borderColor: 'border-l-4 border-blue-500' }
+        return { label: '승인대기', color: 'bg-blue-100 text-blue-700', borderColor: 'border-l-4 border-blue-500' }
       case 'rejected':
         return { label: '반려됨', color: 'bg-red-100 text-red-600', borderColor: 'border-l-4 border-red-500' }
       case 'draft':
@@ -301,8 +301,8 @@ export default function MyCommentsPage() {
                 <div key={lesson.id} className={`bg-white rounded-lg shadow-sm overflow-hidden ${statusInfo.borderColor}`}>
                   {/* Header row - always visible */}
                   <div
-                    className={`p-4 flex items-center justify-between ${hasComment ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-                    onClick={() => hasComment && toggleExpand(lesson.id)}
+                    className={`p-4 flex items-center justify-between ${hasComment && (comment?.status === 'approved' || comment?.status === 'submitted') ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                    onClick={() => hasComment && (comment?.status === 'approved' || comment?.status === 'submitted') && toggleExpand(lesson.id)}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
@@ -312,33 +312,47 @@ export default function MyCommentsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusInfo.color}`}>
-                        {statusInfo.label}
-                      </span>
-
-                      {!isParent && !hasComment && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditComment(lesson); }}
-                          className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors font-medium"
-                        >
-                          작성
-                        </button>
-                      )}
-
-                      {!isParent && hasComment && (comment?.status === 'rejected' || comment?.status === 'draft') && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditComment(lesson); }}
-                          className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
-                        >
-                          수정
-                        </button>
-                      )}
-
-                      {hasComment && (
-                        <span className="text-gray-400 ml-1">
-                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                        </span>
-                      )}
+                      {!isParent ? (
+                        !hasComment ? (
+                          // 미작성: 클릭하면 작성 모달
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEditComment(lesson); }}
+                            className="px-4 py-1.5 text-sm bg-gray-200 text-gray-600 rounded-full hover:bg-indigo-500 hover:text-white transition-colors font-medium"
+                          >
+                            미작성
+                          </button>
+                        ) : comment?.status === 'rejected' || comment?.status === 'draft' ? (
+                          // 반려/임시저장: 클릭하면 수정 모달
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEditComment(lesson); }}
+                            className={`px-4 py-1.5 text-sm rounded-full font-medium ${statusInfo.color}`}
+                          >
+                            {statusInfo.label}
+                          </button>
+                        ) : (
+                          // 승인대기/제출완료: 뱃지 + 펼치기 화살표
+                          <>
+                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </span>
+                            <span className="text-gray-400">
+                              {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            </span>
+                          </>
+                        )
+                      ) : (
+                        // 학부모: 뱃지 + 펼치기
+                        hasComment && (
+                          <>
+                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </span>
+                            <span className="text-gray-400">
+                              {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            </span>
+                          </>
+                        )
+                      )
                     </div>
                   </div>
 
