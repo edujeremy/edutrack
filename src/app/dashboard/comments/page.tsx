@@ -109,15 +109,52 @@ export default function CommentsPage() {
   const handleApprove = async (commentId: string) => {
     try {
       setProcessingCommentId(commentId);
+      const now = new Date().toISOString();
+
+      // 1. Update comment status + set sent_to_parent_at for parent notification
       const { error: updateError } = await supabase
         .from('comments')
         .update({
           status: 'approved',
-          reviewed_at: new Date().toISOString(),
+          reviewed_at: now,
+          sent_to_parent_at: now,
         })
         .eq('id', commentId);
 
       if (updateError) throw updateError;
+
+      // 2. Find the comment to get lesson_id
+      const comment = comments.find(c => c.id === commentId);
+      if (comment?.lesson_id) {
+        // 3. Set lesson as teacher_payable (승인 = 페이 발생)
+        await supabase
+          .from('lessons')
+          .update({ is_teacher_payable: true })
+          .eq('id', comment.lesson_id);
+
+        // 4. Create notification for parent
+        const { data: lessonData } = await supabase
+          .from('lessons')
+          .select('package_id, session_number, lesson_date, packages(student_id, students(name, parent_id))')
+          .eq('id', comment.lesson_id)
+          .single();
+
+        if (lessonData) {
+          const pkg = lessonData.packages as any;
+          const parentId = pkg?.students?.parent_id;
+          const studentName = pkg?.students?.name || '';
+          if (parentId) {
+            await supabase.from('notifications').insert({
+              user_id: parentId,
+              title: '수업 코멘트 도착',
+              message: `${studentName}님의 ${lessonData.lesson_date} ${lessonData.session_number}회차 수업 코멘트가 도착했습니다.`,
+              type: 'comment_approved',
+              read: false,
+              action_url: '/dashboard/calendar',
+            });
+          }
+        }
+      }
 
       setComments(prev =>
         prev.map(c =>

@@ -658,6 +658,10 @@ export default function DashboardPage() {
 
   // Absence type handlers
   const setAbsenceType = async (lessonId: string, type: 'noshow' | 'excused' | 'makeup') => {
+    // Get current lesson info first
+    const currentLesson = absentLessons.find(l => l.id === lessonId);
+    const previousType = currentLesson?.absence_type;
+
     const updates: any = { absence_type: type };
     if (type === 'noshow') {
       updates.is_billable = true;
@@ -671,6 +675,50 @@ export default function DashboardPage() {
       updates.makeup_status = 'requested';
     }
     await supabase.from('lessons').update(updates).eq('id', lessonId);
+
+    // Session number adjustment for excused absences
+    // When marking as excused: future lessons in same package get session_number -1
+    // When changing FROM excused to something else: future lessons get session_number +1
+    if (currentLesson) {
+      const { data: thisLesson } = await supabase
+        .from('lessons')
+        .select('package_id, lesson_date, session_number')
+        .eq('id', lessonId)
+        .single();
+
+      if (thisLesson) {
+        if (type === 'excused' && previousType !== 'excused') {
+          // Shift future lessons down by 1
+          const { data: futureLessons } = await supabase
+            .from('lessons')
+            .select('id, session_number')
+            .eq('package_id', thisLesson.package_id)
+            .gt('lesson_date', thisLesson.lesson_date)
+            .order('lesson_date');
+
+          if (futureLessons) {
+            for (const fl of futureLessons) {
+              await supabase.from('lessons').update({ session_number: fl.session_number - 1 }).eq('id', fl.id);
+            }
+          }
+        } else if (previousType === 'excused' && type !== 'excused') {
+          // Shift future lessons back up by 1
+          const { data: futureLessons } = await supabase
+            .from('lessons')
+            .select('id, session_number')
+            .eq('package_id', thisLesson.package_id)
+            .gt('lesson_date', thisLesson.lesson_date)
+            .order('lesson_date');
+
+          if (futureLessons) {
+            for (const fl of futureLessons) {
+              await supabase.from('lessons').update({ session_number: fl.session_number + 1 }).eq('id', fl.id);
+            }
+          }
+        }
+      }
+    }
+
     setAbsentLessons(prev => prev.map(l => l.id === lessonId ? { ...l, ...updates } : l));
   };
 
@@ -691,12 +739,61 @@ export default function DashboardPage() {
       alert('날짜와 시간을 모두 입력해주세요');
       return;
     }
+
+    // 1. Update original absent lesson with makeup schedule
     await supabase.from('lessons').update({
       makeup_date: makeupModal.date,
       makeup_start_time: makeupModal.startTime,
       makeup_end_time: makeupModal.endTime,
       makeup_status: 'scheduled',
     }).eq('id', makeupModal.lesson.id);
+
+    // 2. Get original lesson details to create the actual makeup lesson
+    const { data: originalLesson } = await supabase
+      .from('lessons')
+      .select('package_id, session_number')
+      .eq('id', makeupModal.lesson.id)
+      .single();
+
+    if (originalLesson) {
+      // 3. Create actual makeup lesson on the new date
+      await supabase.from('lessons').insert({
+        package_id: originalLesson.package_id,
+        session_number: originalLesson.session_number,
+        lesson_date: makeupModal.date,
+        start_time: makeupModal.startTime,
+        end_time: makeupModal.endTime,
+        attendance: 'scheduled',
+        is_billable: true,
+        is_teacher_payable: true,
+      });
+
+      // 4. Send notifications to teacher and parent
+      const { data: pkgData } = await supabase
+        .from('packages')
+        .select('teacher_id, students(name, parent_id), teachers(profile_id)')
+        .eq('id', originalLesson.package_id)
+        .single();
+
+      if (pkgData) {
+        const pkg = pkgData as any;
+        const studentName = pkg.students?.name || '';
+        const parentId = pkg.students?.parent_id;
+        const teacherProfileId = pkg.teachers?.profile_id;
+        const msg = `${studentName}님의 보강 수업이 ${makeupModal.date} ${makeupModal.startTime}~${makeupModal.endTime}에 확정되었습니다.`;
+
+        const notifications = [];
+        if (parentId) {
+          notifications.push({ user_id: parentId, title: '보강 수업 확정', message: msg, type: 'makeup_scheduled', read: false, action_url: '/dashboard/calendar' });
+        }
+        if (teacherProfileId) {
+          notifications.push({ user_id: teacherProfileId, title: '보강 수업 확정', message: msg, type: 'makeup_scheduled', read: false, action_url: '/dashboard' });
+        }
+        if (notifications.length > 0) {
+          await supabase.from('notifications').insert(notifications);
+        }
+      }
+    }
 
     setAbsentLessons(prev => prev.map(l => l.id === makeupModal.lesson.id ? {
       ...l,
@@ -706,7 +803,7 @@ export default function DashboardPage() {
       makeup_status: 'scheduled',
     } : l));
     setMakeupModal(null);
-    alert('보강 일정이 확정되었습니다.');
+    alert('보강 일정이 확정되었습니다. 학부모와 강사에게 알림이 전송되었습니다.');
   };
 
   if (loading) {
@@ -754,6 +851,23 @@ export default function DashboardPage() {
               <div className="text-3xl font-bold text-gray-900 mt-2">{stats.unpaidTuitionCount}</div>
             </Link>
           </div>
+
+          {/* 보강 대기 알림 */}
+          {absentLessons.filter(l => l.absence_type === 'makeup' && l.makeup_status === 'requested').length > 0 && (
+            <div className="bg-purple-50 border-2 border-purple-300 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg">📅</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-purple-800">
+                    보강 일정 미확정 {absentLessons.filter(l => l.absence_type === 'makeup' && l.makeup_status === 'requested').length}건
+                  </h3>
+                  <p className="text-sm text-purple-600">아래 결석 수업 관리에서 보강 일정을 확정해주세요.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 강사별 코멘트 관리 현황 */}
           {teacherCommentStats.length > 0 && (
@@ -1224,9 +1338,9 @@ export default function DashboardPage() {
                         <div className="font-semibold text-gray-900">{lesson.student_name}</div>
                         <div className="text-sm text-gray-500">{lesson.lesson_date}</div>
                       </div>
-                      <button className="px-3 py-1 bg-yellow-600 text-white rounded text-sm">
+                      <Link href="/dashboard/my-comments" className="px-3 py-1 bg-yellow-600 text-white rounded text-sm inline-block">
                         작성하기
-                      </button>
+                      </Link>
                     </div>
                   ))}
                 </div>
