@@ -126,7 +126,12 @@ export default function CalendarPage() {
     e.stopPropagation()
     const lessonsWithComment = getLessonsForDate(dateStr).filter(l => l.comment?.status === 'approved')
     if (lessonsWithComment.length > 0) {
-      setCommentModalLesson(lessonsWithComment[0])
+      const lesson = lessonsWithComment[0]
+      setCommentModalLesson(lesson)
+      // Mark as read by parent
+      if (lesson.comment?.id && !(lesson.comment as any).parent_read_at) {
+        supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id)
+      }
     }
   }
 
@@ -503,7 +508,14 @@ export default function CalendarPage() {
                   {lesson.comment?.status === 'approved' && (
                     <div className="border-t border-gray-200">
                       <button
-                        onClick={() => setSelectedLessonComment(selectedLessonComment?.id === lesson.id ? null : lesson)}
+                        onClick={() => {
+                          const isOpening = selectedLessonComment?.id !== lesson.id;
+                          setSelectedLessonComment(isOpening ? lesson : null);
+                          // Mark as read by parent when opening
+                          if (isOpening && lesson.comment?.id && !(lesson.comment as any).parent_read_at) {
+                            supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id);
+                          }
+                        }}
                         className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
                       >
                         <span className="text-sm font-medium text-purple-700 flex items-center gap-2">

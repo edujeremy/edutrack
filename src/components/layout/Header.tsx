@@ -1,17 +1,16 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Bell, Menu, X } from 'lucide-react'
+import React from 'react'
+import { Menu } from 'lucide-react'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface HeaderProps {
   title: string
-  unreadNotifications?: number
   onMenuClick?: () => void
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title,
-  unreadNotifications = 0,
   onMenuClick,
 }) => {
   return (
@@ -20,15 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
 
         <div className="flex items-center gap-4">
-          {/* Notification Bell */}
-          <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <Bell size={20} />
-            {unreadNotifications > 0 && (
-              <span className="absolute top-1 right-1 inline-flex items-center justify-center h-5 w-5 bg-red-500 text-white text-xs font-semibold rounded-full">
-                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-              </span>
-            )}
-          </button>
+          {/* Notification Bell with dropdown */}
+          <NotificationBell />
 
           {/* Mobile Menu Button */}
           {onMenuClick && (
