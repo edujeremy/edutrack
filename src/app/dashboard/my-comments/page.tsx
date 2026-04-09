@@ -213,7 +213,7 @@ export default function MyCommentsPage() {
 
       const commentPayload = {
         lesson_id: selectedLesson.id,
-        teacher_id: teacher?.id || user.id,
+        teacher_id: user.id,
         progress: formData.progress,
         homework_evaluation: formData.homework_evaluation,
         strengths: formData.strengths,
