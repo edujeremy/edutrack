@@ -130,7 +130,9 @@ export default function CalendarPage() {
       setCommentModalLesson(lesson)
       // Mark as read by parent
       if (lesson.comment?.id && !(lesson.comment as any).parent_read_at) {
-        supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id)
+        supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id).then(({ error }) => {
+          if (error) console.error('parent_read_at update error:', error)
+        })
       }
     }
   }
@@ -513,7 +515,9 @@ export default function CalendarPage() {
                           setSelectedLessonComment(isOpening ? lesson : null);
                           // Mark as read by parent when opening
                           if (isOpening && lesson.comment?.id && !(lesson.comment as any).parent_read_at) {
-                            supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id);
+                            supabase.from('comments').update({ parent_read_at: new Date().toISOString() }).eq('id', lesson.comment.id).then(({ error }) => {
+                              if (error) console.error('parent_read_at update error:', error)
+                            });
                           }
                         }}
                         className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
