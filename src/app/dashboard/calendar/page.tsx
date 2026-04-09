@@ -178,14 +178,15 @@ export default function CalendarPage() {
       const { error } = await supabase
         .from('absence_requests')
         .insert({
-          student_id: packages.find(p => p.id === lesson.package_id)?.student_id,
           lesson_id: lessonId,
           parent_id: user.id,
           reason: '학부모 결석 신청',
           status: 'pending',
         })
 
-      if (!error) {
+      if (error) {
+        console.error('Absence request error:', error)
+      } else {
         // Update local lesson state
         setLessons(prev => prev.map(l =>
           l.id === lessonId ? { ...l, attendance: 'absent' as const } : l
