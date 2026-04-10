@@ -167,36 +167,73 @@ export default function CalendarPage() {
   }
 
   const handleAbsenceRequest = async (lessonId: string) => {
+    const lesson = lessons.find(l => l.id === lessonId)
+    if (!lesson) return
+
+    // 수업 시작 1시간 전 마감 체크
+    const lessonDateTime = new Date(`${lesson.lesson_date}T${lesson.start_time}`)
+    const now = new Date()
+    const oneHourBefore = new Date(lessonDateTime.getTime() - 60 * 60 * 1000)
+
+    if (now >= oneHourBefore) {
+      alert('수업 시작 1시간 전부터는 결석 신청이 불가합니다.')
+      return
+    }
+
     setAbsenceRequesting(lessonId)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const lesson = lessons.find(l => l.id === lessonId)
-      if (!lesson) return
-
-      const { error } = await supabase
+      // 1) 결석 요청 테이블에 기록
+      const { error: reqError } = await supabase
         .from('absence_requests')
         .insert({
           lesson_id: lessonId,
           parent_id: user.id,
           reason: '학부모 결석 신청',
-          status: 'pending',
+          status: 'approved',
         })
 
-      if (error) {
-        console.error('Absence request error:', error)
-      } else {
-        // Update local lesson state
-        setLessons(prev => prev.map(l =>
-          l.id === lessonId ? { ...l, attendance: 'absent' as const } : l
-        ))
-        setDayLessons(prev => prev.map(l =>
-          l.id === lessonId ? { ...l, attendance: 'absent' as const } : l
-        ))
+      if (reqError) {
+        console.error('Absence request error:', reqError)
+        alert('결석 신청 중 오류가 발생했습니다.')
+        return
       }
+
+      // 2) 실제 수업 출석 상태를 absent로 변경 + 미청구 처리
+      const { error: lessonError } = await supabase
+        .from('lessons')
+        .update({
+          attendance: 'absent',
+          absence_reason: '학부모 사전 결석 신청',
+          is_billable: false,
+          is_teacher_payable: false,
+        })
+        .eq('id', lessonId)
+
+      if (lessonError) {
+        console.error('Lesson update error:', lessonError)
+      }
+
+      // 3) 로컬 상태 업데이트
+      const updatedLesson = {
+        attendance: 'absent' as const,
+        absence_reason: '학부모 사전 결석 신청',
+        is_billable: false,
+        is_teacher_payable: false,
+      }
+      setLessons(prev => prev.map(l =>
+        l.id === lessonId ? { ...l, ...updatedLesson } : l
+      ))
+      setDayLessons(prev => prev.map(l =>
+        l.id === lessonId ? { ...l, ...updatedLesson } : l
+      ))
+
+      alert('결석 신청이 완료되었습니다.')
     } catch (err) {
       console.error('Absence request error:', err)
+      alert('결석 신청 중 오류가 발생했습니다.')
     } finally {
       setAbsenceRequesting(null)
     }
@@ -494,17 +531,30 @@ export default function CalendarPage() {
                     )}
 
                     {/* Scheduled: Absence Request */}
-                    {lesson.attendance === 'scheduled' && (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => handleAbsenceRequest(lesson.id)}
-                          disabled={absenceRequesting === lesson.id}
-                          className="w-full px-3 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-                        >
-                          {absenceRequesting === lesson.id ? '처리 중...' : '결석 신청'}
-                        </button>
-                      </div>
-                    )}
+                    {lesson.attendance === 'scheduled' && (() => {
+                      const lessonDT = new Date(`${lesson.lesson_date}T${lesson.start_time}`)
+                      const oneHourBefore = new Date(lessonDT.getTime() - 60 * 60 * 1000)
+                      const isDeadlinePassed = new Date() >= oneHourBefore
+                      return (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => handleAbsenceRequest(lesson.id)}
+                            disabled={absenceRequesting === lesson.id || isDeadlinePassed}
+                            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              isDeadlinePassed
+                                ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+                                : 'bg-white border border-red-300 text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            {absenceRequesting === lesson.id
+                              ? '처리 중...'
+                              : isDeadlinePassed
+                                ? '결석 신청 마감 (수업 1시간 전)'
+                                : '결석 신청'}
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   {/* Comment Section */}
