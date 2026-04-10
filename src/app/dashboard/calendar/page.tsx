@@ -30,6 +30,8 @@ export default function CalendarPage() {
   const [absenceRequesting, setAbsenceRequesting] = useState<string | null>(null)
   const [commentModalLesson, setCommentModalLesson] = useState<LessonWithComment | null>(null)
   const [tuitionPopupPkg, setTuitionPopupPkg] = useState<Package | null>(null)
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [confirmAbsence, setConfirmAbsence] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -166,7 +168,12 @@ export default function CalendarPage() {
     }
   }
 
-  const handleAbsenceRequest = async (lessonId: string) => {
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ text, type })
+    setTimeout(() => setToastMessage(null), 3000)
+  }
+
+  const handleAbsenceClick = (lessonId: string) => {
     const lesson = lessons.find(l => l.id === lessonId)
     if (!lesson) return
 
@@ -176,10 +183,15 @@ export default function CalendarPage() {
     const oneHourBefore = new Date(lessonDateTime.getTime() - 60 * 60 * 1000)
 
     if (now >= oneHourBefore) {
-      alert('수업 시작 1시간 전부터는 결석 신청이 불가합니다.')
+      showToast('수업 시작 1시간 전부터는 결석 신청이 불가합니다.', 'error')
       return
     }
 
+    setConfirmAbsence(lessonId)
+  }
+
+  const handleAbsenceRequest = async (lessonId: string) => {
+    setConfirmAbsence(null)
     setAbsenceRequesting(lessonId)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -197,7 +209,7 @@ export default function CalendarPage() {
 
       if (reqError) {
         console.error('Absence request error:', reqError)
-        alert('결석 신청 중 오류가 발생했습니다.')
+        showToast('결석 신청 중 오류가 발생했습니다.', 'error')
         return
       }
 
@@ -230,10 +242,10 @@ export default function CalendarPage() {
         l.id === lessonId ? { ...l, ...updatedLesson } : l
       ))
 
-      alert('결석 신청이 완료되었습니다.')
+      showToast('결석 신청이 완료되었습니다.')
     } catch (err) {
       console.error('Absence request error:', err)
-      alert('결석 신청 중 오류가 발생했습니다.')
+      showToast('결석 신청 중 오류가 발생했습니다.', 'error')
     } finally {
       setAbsenceRequesting(null)
     }
@@ -538,7 +550,7 @@ export default function CalendarPage() {
                       return (
                         <div className="mt-3">
                           <button
-                            onClick={() => handleAbsenceRequest(lesson.id)}
+                            onClick={() => handleAbsenceClick(lesson.id)}
                             disabled={absenceRequesting === lesson.id || isDeadlinePassed}
                             className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                               isDeadlinePassed
@@ -695,6 +707,44 @@ export default function CalendarPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Absence Confirm Dialog */}
+      {confirmAbsence && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center" onClick={() => setConfirmAbsence(null)}>
+          <div className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">결석 신청</h3>
+              <p className="text-sm text-gray-600 mt-1">이 수업을 결석 처리하시겠습니까?<br />결석 신청 시 출석이 &lsquo;결석&rsquo;으로 변경됩니다.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAbsence(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleAbsenceRequest(confirmAbsence)}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                결석 신청
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Message */}
+      {toastMessage && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
+          toastMessage.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {toastMessage.text}
         </div>
       )}
     </div>
