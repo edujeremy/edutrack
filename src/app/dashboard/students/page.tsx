@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/lib/types';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Student {
   id: string;
@@ -37,6 +38,7 @@ export default function StudentsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     school: '',
@@ -197,23 +199,28 @@ export default function StudentsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
 
     try {
-      setProcessingId(id);
+      setProcessingId(deleteConfirm);
       const { error: deleteError } = await supabase
         .from('students')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteConfirm);
 
       if (deleteError) throw deleteError;
-      setStudents(prev => prev.filter(s => s.id !== id));
+      setStudents(prev => prev.filter(s => s.id !== deleteConfirm));
     } catch (err) {
       setError('삭제 중 오류가 발생했습니다');
       console.error(err);
     } finally {
       setProcessingId(null);
+      setDeleteConfirm(null);
     }
   };
 
@@ -308,7 +315,7 @@ export default function StudentsPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(student.id)}
+                          onClick={() => handleDeleteClick(student.id)}
                           disabled={processingId === student.id}
                           className="p-2 text-red-600 hover:bg-red-50 rounded disabled:text-gray-400"
                           title="삭제"
@@ -450,6 +457,18 @@ export default function StudentsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm(null)}
+        title="학생 삭제"
+        message="정말 삭제하시겠습니까?"
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
+      />
     </div>
   );
 }

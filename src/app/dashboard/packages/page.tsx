@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Package {
   id: string;
@@ -59,6 +61,7 @@ export default function PackagesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     student_id: '',
@@ -380,17 +383,21 @@ export default function PackagesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까? 관련 수업도 함께 삭제됩니다.')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
 
     try {
-      setProcessingId(id);
+      setProcessingId(deleteConfirm);
 
       // Delete related lessons first
       const { error: lessonsError } = await supabase
         .from('lessons')
         .delete()
-        .eq('package_id', id);
+        .eq('package_id', deleteConfirm);
 
       if (lessonsError) throw lessonsError;
 
@@ -398,15 +405,17 @@ export default function PackagesPage() {
       const { error: deleteError } = await supabase
         .from('packages')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteConfirm);
 
       if (deleteError) throw deleteError;
-      setPackages(prev => prev.filter(p => p.id !== id));
+      setPackages(prev => prev.filter(p => p.id !== deleteConfirm));
+      toast.success('패키지가 삭제되었습니다');
     } catch (err) {
-      setError('삭제 중 오류가 발생했습니다');
+      toast.error('삭제 중 오류가 발생했습니다');
       console.error(err);
     } finally {
       setProcessingId(null);
+      setDeleteConfirm(null);
     }
   };
 
@@ -462,7 +471,7 @@ export default function PackagesPage() {
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(pkg.id)}
+                      onClick={() => handleDeleteClick(pkg.id)}
                       disabled={processingId === pkg.id}
                       className="p-2 text-red-600 hover:bg-red-50 rounded disabled:text-gray-400"
                       title="삭제"
@@ -753,6 +762,17 @@ export default function PackagesPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm(null)}
+        title="패키지 삭제"
+        message="정말 삭제하시겠습니까? 관련 수업도 함께 삭제됩니다."
+        confirmText="삭제"
+        variant="danger"
+      />
     </div>
   );
 }

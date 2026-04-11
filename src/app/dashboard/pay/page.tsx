@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DollarSign, Loader2, CheckCircle, Clock, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Teacher {
   id: string;
@@ -67,6 +69,7 @@ export default function PayPage() {
   const [expandedTeacher, setExpandedTeacher] = useState<string | null>(null);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [settlingKey, setSettlingKey] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void; confirmText?: string; variant?: 'danger' | 'warning' | 'info' } | null>(null);
 
   useEffect(() => {
     const checkAuthAndFetch = async () => {
@@ -202,19 +205,8 @@ export default function PayPage() {
     setLoading(false);
   };
 
-  // 학생별 정산 생성
-  const handleCreateStudentSettlement = async (summary: TeacherPaySummary, group: StudentGroup) => {
-    if (group.unsettledCount === 0) {
-      alert('정산할 미정산 세션이 없습니다.');
-      return;
-    }
-
-    const teacherName = (summary.teacher.profiles as any)?.name || '';
-    const confirmed = window.confirm(
-      `${teacherName}님 - ${group.student_name} (${group.package_name})\n미정산 ${group.unsettledCount}회차 (${group.unsettledAmount.toLocaleString()}원)를 정산하시겠습니까?`
-    );
-    if (!confirmed) return;
-
+  // 학생별 정산 생성 (실제 실행)
+  const executeStudentSettlement = async (summary: TeacherPaySummary, group: StudentGroup) => {
     const key = `${summary.teacher.id}_${group.student_id}`;
     setSettlingKey(key);
 
@@ -232,35 +224,36 @@ export default function PayPage() {
     });
 
     if (error) {
-      alert('정산 생성 오류: ' + error.message);
+      toast.error('정산 생성 오류: ' + error.message);
     } else {
-      alert(`${group.student_name} 정산이 생성되었습니다.`);
+      toast.success(`${group.student_name} 정산이 생성되었습니다.`);
       await fetchData();
     }
     setSettlingKey(null);
   };
 
-  // 선생님 전체 일괄 정산
-  const handleCreateBulkSettlement = async (summary: TeacherPaySummary) => {
-    if (summary.totalUnsettled === 0) {
-      alert('정산할 미정산 세션이 없습니다.');
+  // 학생별 정산 클릭 핸들러
+  const handleCreateStudentSettlement = (summary: TeacherPaySummary, group: StudentGroup) => {
+    if (group.unsettledCount === 0) {
+      toast.error('정산할 미정산 세션이 없습니다.');
       return;
     }
 
     const teacherName = (summary.teacher.profiles as any)?.name || '';
-    const studentList = summary.studentGroups
-      .filter(g => g.unsettledCount > 0)
-      .map(g => `  ${g.student_name}: ${g.unsettledCount}회`)
-      .join('\n');
+    setConfirmAction({
+      title: '학생별 정산',
+      message: `${teacherName}님 - ${group.student_name} (${group.package_name})\n미정산 ${group.unsettledCount}회차 (${group.unsettledAmount.toLocaleString()}원)를 정산하시겠습니까?`,
+      confirmText: '정산',
+      variant: 'info',
+      onConfirm: () => executeStudentSettlement(summary, group),
+    });
+  };
 
-    const confirmed = window.confirm(
-      `${teacherName}님 전체 미정산을 일괄 정산하시겠습니까?\n\n${studentList}\n\n총 ${summary.totalUnsettled}회차 (${summary.totalUnsettledAmount.toLocaleString()}원)`
-    );
-    if (!confirmed) return;
-
+  // 선생님 전체 일괄 정산 (실제 실행)
+  const executeBulkSettlement = async (summary: TeacherPaySummary) => {
+    const teacherName = (summary.teacher.profiles as any)?.name || '';
     setSettlingKey(summary.teacher.id);
 
-    // 학생별로 각각 정산 레코드 생성
     for (const group of summary.studentGroups) {
       if (group.unsettledCount === 0) continue;
       const dates = group.unsettledSessions.map(s => s.lesson_date).sort();
@@ -277,21 +270,53 @@ export default function PayPage() {
       });
     }
 
-    alert(`${teacherName}님 전체 정산이 생성되었습니다.`);
+    toast.success(`${teacherName}님 전체 정산이 생성되었습니다.`);
     await fetchData();
     setSettlingKey(null);
   };
 
-  const handleMarkPaid = async (settlementId: string) => {
-    const confirmed = window.confirm('이 정산을 "지급 완료"로 표시하시겠습니까?');
-    if (!confirmed) return;
+  // 선생님 전체 일괄 정산 클릭 핸들러
+  const handleCreateBulkSettlement = (summary: TeacherPaySummary) => {
+    if (summary.totalUnsettled === 0) {
+      toast.error('정산할 미정산 세션이 없습니다.');
+      return;
+    }
 
+    const teacherName = (summary.teacher.profiles as any)?.name || '';
+    const studentList = summary.studentGroups
+      .filter(g => g.unsettledCount > 0)
+      .map(g => `  ${g.student_name}: ${g.unsettledCount}회`)
+      .join('\n');
+
+    setConfirmAction({
+      title: '전체 일괄 정산',
+      message: `${teacherName}님 전체 미정산을 일괄 정산하시겠습니까?\n\n${studentList}\n\n총 ${summary.totalUnsettled}회차 (${summary.totalUnsettledAmount.toLocaleString()}원)`,
+      confirmText: '일괄 정산',
+      variant: 'info',
+      onConfirm: () => executeBulkSettlement(summary),
+    });
+  };
+
+  // 지급 완료 처리 (실제 실행)
+  const executeMarkPaid = async (settlementId: string) => {
     await supabase
       .from('teacher_pay_settlements')
       .update({ status: 'paid', paid_at: new Date().toISOString() })
       .eq('id', settlementId);
 
+    toast.success('지급 완료로 표시되었습니다.');
     await fetchData();
+  };
+
+  // 지급 완료 클릭 핸들러
+  const handleMarkPaid = (settlementId: string) => {
+    setConfirmAction({
+      title: '지급 완료',
+      message: '이 정산을 "지급 완료"로 표시하시겠습니까?',
+      confirmText: '지급 완료',
+      variant: 'info',
+      onConfirm: () => executeMarkPaid(settlementId),
+    });
   };
 
   if (loading) {
@@ -511,6 +536,19 @@ export default function PayPage() {
           )}
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      {confirmAction && (
+        <ConfirmDialog
+          isOpen={true}
+          onConfirm={() => { confirmAction.onConfirm(); setConfirmAction(null); }}
+          onCancel={() => setConfirmAction(null)}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          confirmText={confirmAction.confirmText || '확인'}
+          variant={confirmAction.variant || 'info'}
+        />
+      )}
     </div>
   );
 }

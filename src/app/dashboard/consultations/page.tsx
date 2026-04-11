@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { MessageSquare, Loader2, Edit2 } from 'lucide-react';
 
@@ -88,7 +89,7 @@ export default function ConsultationsPage() {
       setEditingNotes('');
       fetchConsultations();
     } else {
-      alert('저장 중 오류가 발생했습니다');
+      toast.error('저장 중 오류가 발생했습니다');
     }
   };
 

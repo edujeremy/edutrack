@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -736,7 +737,7 @@ export default function DashboardPage() {
 
   const saveMakeupSchedule = async () => {
     if (!makeupModal || !makeupModal.date || !makeupModal.startTime || !makeupModal.endTime) {
-      alert('날짜와 시간을 모두 입력해주세요');
+      toast.error('날짜와 시간을 모두 입력해주세요');
       return;
     }
 
@@ -803,7 +804,7 @@ export default function DashboardPage() {
       makeup_status: 'scheduled',
     } : l));
     setMakeupModal(null);
-    alert('보강 일정이 확정되었습니다. 학부모와 강사에게 알림이 전송되었습니다.');
+    toast.success('보강 일정이 확정되었습니다. 학부모와 강사에게 알림이 전송되었습니다.');
   };
 
   if (loading) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Download, Loader2, Calendar } from 'lucide-react';
 
@@ -63,7 +64,7 @@ export default function ExportPage() {
 
   const handleTeacherLessons = async () => {
     if (!startDate || !endDate) {
-      alert('시작일과 종료일을 선택해주세요');
+      toast.error('시작일과 종료일을 선택해주세요');
       return;
     }
 
@@ -139,7 +140,7 @@ export default function ExportPage() {
 
   const handleStudentRecords = async () => {
     if (!startDate || !endDate) {
-      alert('시작일과 종료일을 선택해주세요');
+      toast.error('시작일과 종료일을 선택해주세요');
       return;
     }
 
@@ -215,7 +216,7 @@ export default function ExportPage() {
 
   const handlePaySettlements = async () => {
     if (!startDate || !endDate) {
-      alert('시작일과 종료일을 선택해주세요');
+      toast.error('시작일과 종료일을 선택해주세요');
       return;
     }
 

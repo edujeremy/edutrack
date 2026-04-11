@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Teacher {
   id: string;
@@ -40,6 +41,7 @@ export default function TeachersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     per_session_rate: '',
     settlement_cycle: 'monthly',
@@ -235,8 +237,15 @@ export default function TeachersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirm(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+
+    const id = deleteConfirm;
+    setDeleteConfirm(null);
 
     try {
       setProcessingId(id);
@@ -325,7 +334,7 @@ export default function TeachersPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(teacher.id)}
+                          onClick={() => handleDeleteClick(teacher.id)}
                           disabled={processingId === teacher.id}
                           className="p-2 text-red-600 hover:bg-red-50 rounded disabled:text-gray-400"
                           title="삭제"
@@ -475,6 +484,17 @@ export default function TeachersPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirm}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirm(null)}
+        title="강사 삭제"
+        message="정말 삭제하시겠습니까?"
+        confirmText="삭제"
+        variant="danger"
+      />
     </div>
   );
 }
