@@ -281,21 +281,18 @@ export default function CalendarPage() {
     }
   }
 
-  // 학부모 후속 액션: 보강 요청
+  // 학부모 후속 액션: 보강 요청 — attendance enum 변경 없이 컬럼만 update
   const handleRequestMakeup = async (lessonId: string) => {
     const { error } = await supabase
       .from('lessons')
-      .update({
-        parent_post_absence_action: 'requested_makeup',
-        attendance: 'makeup_requested',
-      })
+      .update({ parent_post_absence_action: 'requested_makeup' })
       .eq('id', lessonId)
     if (error) {
       showToast('보강 요청 실패: ' + error.message, 'error')
       return
     }
-    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup', attendance: 'makeup_requested' as any } : l))
-    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup', attendance: 'makeup_requested' as any } : l))
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup' } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup' } : l))
     showToast('보강 요청 완료. 강사가 슬롯을 제안하면 알림이 옵니다.')
   }
 
@@ -305,7 +302,6 @@ export default function CalendarPage() {
       .from('lessons')
       .update({
         parent_post_absence_action: 'skipped',
-        attendance: 'skipped',
         is_billable: false,
         is_teacher_payable: false,
       })
@@ -314,8 +310,8 @@ export default function CalendarPage() {
       showToast('스킵 처리 실패: ' + error.message, 'error')
       return
     }
-    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', attendance: 'skipped' as any, is_billable: false, is_teacher_payable: false } : l))
-    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', attendance: 'skipped' as any, is_billable: false, is_teacher_payable: false } : l))
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', is_billable: false, is_teacher_payable: false } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', is_billable: false, is_teacher_payable: false } : l))
     showToast('스킵 처리 완료. 회차·청구 모두 면제됩니다.')
   }
 
@@ -324,7 +320,6 @@ export default function CalendarPage() {
     const { error } = await supabase
       .from('lessons')
       .update({
-        attendance: 'makeup_scheduled',
         makeup_parent_approved: true,
         makeup_parent_approved_at: new Date().toISOString(),
       })
@@ -333,8 +328,8 @@ export default function CalendarPage() {
       showToast('보강 승인 실패: ' + error.message, 'error')
       return
     }
-    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, attendance: 'makeup_scheduled' as any, makeup_parent_approved: true } : l))
-    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, attendance: 'makeup_scheduled' as any, makeup_parent_approved: true } : l))
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, makeup_parent_approved: true } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, makeup_parent_approved: true } : l))
     showToast('보강 일정이 확정되었습니다.')
   }
 
@@ -662,8 +657,8 @@ export default function CalendarPage() {
                       </div>
                     )}
 
-                    {/* 강사 보강 슬롯 제안 — 학부모 승인 대기 */}
-                    {(lesson.attendance as string) === 'makeup_proposed' && lesson.makeup_proposed_date && (
+                    {/* 강사 보강 슬롯 제안 — 학부모 승인 대기 (컬럼 기반) */}
+                    {lesson.makeup_proposed_date && !lesson.makeup_parent_approved && (
                       <div className="mt-3 p-3 bg-white rounded-lg border border-amber-300 space-y-2">
                         <p className="text-sm font-bold text-amber-800">강사 보강 제안</p>
                         <p className="text-sm text-gray-700">
@@ -678,8 +673,8 @@ export default function CalendarPage() {
                       </div>
                     )}
 
-                    {/* 보강 확정 */}
-                    {((lesson.attendance as string) === 'makeup_scheduled' || (lesson.attendance as string) === 'makeup_done') && (
+                    {/* 보강 확정 — makeup_parent_approved=true 컬럼 기반 */}
+                    {lesson.makeup_parent_approved && lesson.makeup_proposed_date && (
                       <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                         <p className="text-sm text-amber-800">
                           보강 일정 확정: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} ({tzShortLabel(userTimezone)})

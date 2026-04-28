@@ -145,7 +145,7 @@ export default function MyLessonsPage() {
     }
   }
 
-  // 보강 슬롯 제안 저장
+  // 보강 슬롯 제안 저장 — attendance enum 변경 없이 makeup_* 컬럼만
   const handleProposeMakeup = async () => {
     if (!makeupLesson || !userId) return
     if (!makeupDate || !makeupStart || !makeupEnd) {
@@ -155,7 +155,6 @@ export default function MyLessonsPage() {
     const { error } = await supabase
       .from('lessons')
       .update({
-        attendance: 'makeup_proposed',
         makeup_proposed_date: makeupDate,
         makeup_proposed_start: makeupStart + ':00',
         makeup_proposed_end: makeupEnd + ':00',
@@ -169,7 +168,6 @@ export default function MyLessonsPage() {
     }
     setAllLessons(prev => prev.map(l => l.id === makeupLesson.id ? {
       ...l,
-      attendance: 'makeup_proposed' as any,
       makeup_proposed_date: makeupDate,
       makeup_proposed_start: makeupStart + ':00',
       makeup_proposed_end: makeupEnd + ':00',
@@ -281,8 +279,8 @@ export default function MyLessonsPage() {
                           </div>
                         )}
 
-                        {/* 보강 요청 받음 — 슬롯 제안 폼 열기 */}
-                        {lesson.attendance === 'makeup_requested' && (
+                        {/* 보강 요청 받음 (학부모 액션) — 슬롯 아직 제안 X → 슬롯 제안 폼 */}
+                        {lesson.parent_post_absence_action === 'requested_makeup' && !lesson.makeup_proposed_date && (
                           <button
                             onClick={() => {
                               setMakeupLesson(lesson)
@@ -296,15 +294,15 @@ export default function MyLessonsPage() {
                           </button>
                         )}
 
-                        {/* 보강 제안한 상태 — 학부모 승인 대기 */}
-                        {lesson.attendance === 'makeup_proposed' && lesson.makeup_proposed_date && (
+                        {/* 슬롯 제안 완료 — 학부모 승인 대기 */}
+                        {lesson.makeup_proposed_date && !lesson.makeup_parent_approved && (
                           <div className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
                             제안: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} — 학부모 승인 대기
                           </div>
                         )}
 
-                        {/* 보강 확정 */}
-                        {(lesson.attendance === 'makeup_scheduled' || lesson.attendance === 'makeup_done') && lesson.makeup_proposed_date && (
+                        {/* 보강 확정 — 학부모 승인 완료 */}
+                        {lesson.makeup_parent_approved && lesson.makeup_proposed_date && (
                           <div className="mt-2 text-xs text-amber-800 bg-amber-100 p-2 rounded">
                             보강 확정: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)}
                           </div>
