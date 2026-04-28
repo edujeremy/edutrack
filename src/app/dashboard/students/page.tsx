@@ -7,6 +7,27 @@ import { Profile } from '@/lib/types';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
+// 미국 학제 학년 표기
+const formatGrade = (g: number | string | null | undefined): string => {
+  if (g === null || g === undefined || g === '') return '-';
+  const n = typeof g === 'string' ? parseInt(g, 10) : g;
+  if (isNaN(n)) return '-';
+  if (n <= 0) return 'Pre-K';
+  if (n <= 5) return `${n}${suffix(n)} Grade (Elementary)`;
+  if (n <= 8) return `${n}${suffix(n)} Grade (Middle)`;
+  if (n <= 12) return `${n}${suffix(n)} Grade (High)`;
+  return `${n}${suffix(n)} Grade`;
+};
+const suffix = (n: number): string => {
+  if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+  switch (n % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+};
+
 interface Student {
   id: string;
   name: string;
@@ -280,7 +301,7 @@ export default function StudentsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">이름</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학교</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학년</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Grade</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">학부모</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">연락처</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">상태</th>
@@ -292,7 +313,7 @@ export default function StudentsPage() {
                   <tr key={student.id} className="border-b border-gray-200 hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{student.school}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{student.grade}학년</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{formatGrade(student.grade)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{student.parent_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{student.parent_phone}</td>
                     <td className="px-6 py-4">

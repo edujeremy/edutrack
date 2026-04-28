@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import type { Role } from '@/lib/types'
 import { isValidPhoneNumber } from '@/lib/utils'
+import { SUPPORTED_TIMEZONES, type SupportedTimezone } from '@/lib/timezone'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -21,6 +22,7 @@ export default function SignupPage() {
     fullName: '',
     phone: '',
     role: 'teacher' as Role,
+    timezone: 'America/Los_Angeles' as SupportedTimezone,
     // 학부모 전용 필드 - 자녀 정보
     childName: '',
     childSchool: '',
@@ -129,6 +131,7 @@ export default function SignupPage() {
             email: formData.email,
             phone: formData.phone,
             role: formData.role,
+            timezone: formData.timezone,
           })
 
         if (profileError) {
@@ -298,6 +301,25 @@ export default function SignupPage() {
               error={errors.phone}
               disabled={isLoading}
             />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                거주 시간대 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.timezone}
+                onChange={(e) => setFormData({ ...formData, timezone: e.target.value as SupportedTimezone })}
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                {SUPPORTED_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                관리자는 캘리포니아(PST)로 수업을 등록하지만, 화면에는 본인 시간대로 자동 변환되어 표시됩니다.
+              </p>
+            </div>
 
             {/* 학부모 전용: 자녀 정보 섹션 */}
             {formData.role === 'parent' && (

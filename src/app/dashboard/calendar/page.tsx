@@ -7,12 +7,18 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import type { Student, Package, Lesson, Comment } from '@/lib/types'
+import { convertFromPST, type SupportedTimezone, tzShortLabel, trimTime } from '@/lib/timezone'
 
 interface LessonWithComment extends Lesson {
   comment?: Comment | null
   student_name?: string
   package_name?: string
   teacher_name?: string
+  parent_post_absence_action?: 'requested_makeup' | 'skipped' | null
+  makeup_proposed_date?: string | null
+  makeup_proposed_start?: string | null
+  makeup_proposed_end?: string | null
+  makeup_parent_approved?: boolean
 }
 
 export default function CalendarPage() {
@@ -32,6 +38,7 @@ export default function CalendarPage() {
   const [tuitionPopupPkg, setTuitionPopupPkg] = useState<Package | null>(null)
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [confirmAbsence, setConfirmAbsence] = useState<string | null>(null)
+  const [userTimezone, setUserTimezone] = useState<SupportedTimezone>('America/Los_Angeles')
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,6 +53,9 @@ export default function CalendarPage() {
           .eq('id', user.id)
           .maybeSingle()
         if (!profileData) return
+        if (profileData.timezone) {
+          setUserTimezone(profileData.timezone as SupportedTimezone)
+        }
 
         const { data: studentsData } = await supabase
           .from('students')
@@ -139,12 +149,31 @@ export default function CalendarPage() {
     }
   }
 
+  const isAbsentLike = (a: string) => a === 'absent' || a === 'absent_notified' || a === 'no_show' || a === 'skipped'
+  const isMakeupLike = (a: string) => a === 'makeup_requested' || a === 'makeup_proposed' || a === 'makeup_scheduled' || a === 'makeup_done'
+
+  // 수업 시간 표시 — PST 기준 DB값을 사용자 timezone으로 변환
+  const formatLessonTime = (lesson: { lesson_date: string; start_time: string; end_time: string }) => {
+    if (!lesson.start_time || !lesson.end_time) return ''
+    if (userTimezone === 'America/Los_Angeles') {
+      return `${trimTime(lesson.start_time)}~${trimTime(lesson.end_time)} (PT)`
+    }
+    try {
+      const a = convertFromPST(lesson.lesson_date, lesson.start_time, userTimezone)
+      const b = convertFromPST(lesson.lesson_date, lesson.end_time, userTimezone)
+      return `${a.time}~${b.time} (${tzShortLabel(userTimezone)})`
+    } catch {
+      return `${trimTime(lesson.start_time)}~${trimTime(lesson.end_time)} (PT)`
+    }
+  }
+
   const getDateStyle = (dateStr: string): string => {
     const dayLessons = getLessonsForDate(dateStr)
     if (dayLessons.length === 0) return ''
     if (dayLessons.some((l) => l.comment?.status === 'approved')) return 'bg-purple-100 border-l-4 border-purple-500'
     if (dayLessons.some((l) => l.attendance === 'attended')) return 'bg-green-100 border-l-4 border-green-500'
-    if (dayLessons.some((l) => l.attendance === 'absent')) return 'bg-red-100 border-l-4 border-red-500'
+    if (dayLessons.some((l) => isMakeupLike(l.attendance as any))) return 'bg-amber-100 border-l-4 border-amber-500'
+    if (dayLessons.some((l) => isAbsentLike(l.attendance as any))) return 'bg-red-100 border-l-4 border-red-500'
     return 'bg-blue-100 border-l-4 border-blue-500'
   }
 
@@ -153,7 +182,8 @@ export default function CalendarPage() {
     return dayLessons.map((l) => {
       if (l.comment?.status === 'approved') return 'bg-purple-500'
       if (l.attendance === 'attended') return 'bg-green-500'
-      if (l.attendance === 'absent') return 'bg-red-500'
+      if (isMakeupLike(l.attendance as any)) return 'bg-amber-500'
+      if (isAbsentLike(l.attendance as any)) return 'bg-red-500'
       return 'bg-blue-500'
     })
   }
@@ -213,11 +243,11 @@ export default function CalendarPage() {
         return
       }
 
-      // 2) 실제 수업 출석 상태를 absent로 변경 + 미청구 처리
+      // 2) 실제 수업 출석 상태를 absent_notified로 변경 + 미청구 처리
       const { error: lessonError } = await supabase
         .from('lessons')
         .update({
-          attendance: 'absent',
+          attendance: 'absent_notified',
           absence_reason: '학부모 사전 결석 신청',
           is_billable: false,
           is_teacher_payable: false,
@@ -230,7 +260,7 @@ export default function CalendarPage() {
 
       // 3) 로컬 상태 업데이트
       const updatedLesson = {
-        attendance: 'absent' as const,
+        attendance: 'absent_notified' as any,
         absence_reason: '학부모 사전 결석 신청',
         is_billable: false,
         is_teacher_payable: false,
@@ -249,6 +279,63 @@ export default function CalendarPage() {
     } finally {
       setAbsenceRequesting(null)
     }
+  }
+
+  // 학부모 후속 액션: 보강 요청
+  const handleRequestMakeup = async (lessonId: string) => {
+    const { error } = await supabase
+      .from('lessons')
+      .update({
+        parent_post_absence_action: 'requested_makeup',
+        attendance: 'makeup_requested',
+      })
+      .eq('id', lessonId)
+    if (error) {
+      showToast('보강 요청 실패: ' + error.message, 'error')
+      return
+    }
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup', attendance: 'makeup_requested' as any } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'requested_makeup', attendance: 'makeup_requested' as any } : l))
+    showToast('보강 요청 완료. 강사가 슬롯을 제안하면 알림이 옵니다.')
+  }
+
+  // 학부모 후속 액션: 스킵 (보강 안 함)
+  const handleSkipLesson = async (lessonId: string) => {
+    const { error } = await supabase
+      .from('lessons')
+      .update({
+        parent_post_absence_action: 'skipped',
+        attendance: 'skipped',
+        is_billable: false,
+        is_teacher_payable: false,
+      })
+      .eq('id', lessonId)
+    if (error) {
+      showToast('스킵 처리 실패: ' + error.message, 'error')
+      return
+    }
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', attendance: 'skipped' as any, is_billable: false, is_teacher_payable: false } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, parent_post_absence_action: 'skipped', attendance: 'skipped' as any, is_billable: false, is_teacher_payable: false } : l))
+    showToast('스킵 처리 완료. 회차·청구 모두 면제됩니다.')
+  }
+
+  // 학부모 후속 액션: 강사 보강 제안 승인
+  const handleApproveMakeupProposal = async (lessonId: string) => {
+    const { error } = await supabase
+      .from('lessons')
+      .update({
+        attendance: 'makeup_scheduled',
+        makeup_parent_approved: true,
+        makeup_parent_approved_at: new Date().toISOString(),
+      })
+      .eq('id', lessonId)
+    if (error) {
+      showToast('보강 승인 실패: ' + error.message, 'error')
+      return
+    }
+    setLessons(prev => prev.map(l => l.id === lessonId ? { ...l, attendance: 'makeup_scheduled' as any, makeup_parent_approved: true } : l))
+    setDayLessons(prev => prev.map(l => l.id === lessonId ? { ...l, attendance: 'makeup_scheduled' as any, makeup_parent_approved: true } : l))
+    showToast('보강 일정이 확정되었습니다.')
   }
 
   const handleAbsenceBilling = async (lessonId: string, billable: boolean) => {
@@ -304,7 +391,10 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <div className="flex items-center justify-between px-4 md:px-6 py-4 bg-white border-b border-gray-200">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">수업 캘린더</h1>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">수업 캘린더</h1>
+          <p className="text-xs text-gray-500 mt-0.5">시간대: {tzShortLabel(userTimezone)} · 변경은 알림 설정에서</p>
+        </div>
         <Link
           href="/dashboard/consultation-request"
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
@@ -515,7 +605,7 @@ export default function CalendarPage() {
                           {lesson.attendance === 'absent' && (lesson as any).absence_type === 'excused'
                             ? '결석인정'
                             : `${lesson.session_number}회차`
-                          } &middot; {lesson.teacher_name} &middot; {lesson.start_time}~{lesson.end_time}
+                          } &middot; {lesson.teacher_name} &middot; {formatLessonTime(lesson)}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -533,11 +623,66 @@ export default function CalendarPage() {
                       </span>
                     </div>
 
-                    {/* Absent: Status display for parent (billing is admin-only) */}
-                    {lesson.attendance === 'absent' && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border border-red-200">
+                    {/* Absent: Status display for parent + 보강/스킵 액션 */}
+                    {isAbsentLike(lesson.attendance as any) && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-red-200 space-y-3">
                         <p className="text-sm text-gray-600">
-                          결석 처리 상태: {lesson.is_billable ? <span className="font-medium text-orange-600">수강료 청구</span> : <span className="font-medium text-gray-600">패스 (미청구)</span>}
+                          결석 처리 상태: {
+                            (lesson.attendance as string) === 'no_show' ? <span className="font-medium text-orange-700">노쇼 (원장 검토)</span> :
+                            lesson.is_billable ? <span className="font-medium text-orange-600">수강료 청구</span> :
+                            <span className="font-medium text-gray-600">패스 (미청구)</span>
+                          }
+                        </p>
+
+                        {/* 학부모 후속 액션 — 아직 결정 안 한 경우만 노출 */}
+                        {!lesson.parent_post_absence_action && (lesson.attendance as string) !== 'no_show' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleRequestMakeup(lesson.id)}
+                              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg"
+                            >
+                              보강 요청
+                            </button>
+                            <button
+                              onClick={() => handleSkipLesson(lesson.id)}
+                              className="px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white text-sm font-medium rounded-lg"
+                            >
+                              스킵 (보강 안 함)
+                            </button>
+                          </div>
+                        )}
+                        {lesson.parent_post_absence_action === 'requested_makeup' && (
+                          <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                            보강 요청됨 — 강사 슬롯 제안 대기 중
+                          </div>
+                        )}
+                        {lesson.parent_post_absence_action === 'skipped' && (
+                          <div className="text-xs text-gray-500">스킵 처리됨</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 강사 보강 슬롯 제안 — 학부모 승인 대기 */}
+                    {(lesson.attendance as string) === 'makeup_proposed' && lesson.makeup_proposed_date && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-amber-300 space-y-2">
+                        <p className="text-sm font-bold text-amber-800">강사 보강 제안</p>
+                        <p className="text-sm text-gray-700">
+                          {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} ({tzShortLabel(userTimezone)})
+                        </p>
+                        <button
+                          onClick={() => handleApproveMakeupProposal(lesson.id)}
+                          className="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg"
+                        >
+                          이 일정으로 승인
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 보강 확정 */}
+                    {((lesson.attendance as string) === 'makeup_scheduled' || (lesson.attendance as string) === 'makeup_done') && (
+                      <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <p className="text-sm text-amber-800">
+                          보강 일정 확정: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} ({tzShortLabel(userTimezone)})
                         </p>
                       </div>
                     )}

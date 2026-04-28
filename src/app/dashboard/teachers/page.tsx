@@ -375,27 +375,39 @@ export default function TeachersPage() {
             </div>
 
             <div className="space-y-4">
-              {!editingId && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    선생님 선택 *
-                  </label>
-                  <select
-                    value={selectedProfileId}
-                    onChange={(e) => setSelectedProfileId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">선생님을 선택해주세요</option>
-                    {profiles
-                      .filter(p => !teachers.find(t => t.profile_id === p.id))
-                      .map(profile => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
+              {!editingId && (() => {
+                const candidates = profiles.filter(p => !teachers.find(t => t.profile_id === p.id));
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      선생님 선택 *
+                    </label>
+                    {candidates.length === 0 ? (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900 space-y-2">
+                        <p className="font-semibold">강사 후보가 없습니다.</p>
+                        <p>아래 두 가지 중 하나로 강사를 등록할 수 있습니다:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-xs">
+                          <li>강사 본인이 <a href="/signup" className="underline text-amber-700">회원가입 페이지</a>에서 "선생님"으로 가입 → 이 모달에서 추가</li>
+                          <li>관리자가 직접: Supabase Auth Console에서 강사 user 생성 → SQL로 <code className="bg-amber-100 px-1">UPDATE profiles SET role='teacher' WHERE email='강사이메일'</code> 실행 → 이 모달에서 추가</li>
+                        </ol>
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedProfileId}
+                        onChange={(e) => setSelectedProfileId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">선생님을 선택해주세요</option>
+                        {candidates.map(profile => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.name} ({profile.email})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
 
               {editingId && (
                 <div>

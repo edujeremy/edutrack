@@ -14,7 +14,9 @@ import {
   Loader,
   Check,
   AlertCircle,
+  Globe,
 } from 'lucide-react'
+import { SUPPORTED_TIMEZONES, type SupportedTimezone } from '@/lib/timezone'
 
 type NotificationPreference = {
   consultation_reminder: boolean
@@ -38,6 +40,7 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    timezone: 'America/Los_Angeles' as SupportedTimezone,
   })
 
   // Password form
@@ -88,6 +91,7 @@ export default function SettingsPage() {
         setFormData({
           name: profileData.name,
           phone: profileData.phone || '',
+          timezone: (profileData.timezone as SupportedTimezone) || 'America/Los_Angeles',
         })
 
         // Load notification preferences from localStorage
@@ -123,6 +127,7 @@ export default function SettingsPage() {
         .update({
           name: formData.name,
           phone: formData.phone || null,
+          timezone: formData.timezone,
         })
         .eq('id', profile?.id)
 
@@ -355,6 +360,33 @@ export default function SettingsPage() {
             <div className="mt-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
               {getRoleLabel(profile.role)}
             </div>
+          </div>
+
+          {/* 시간대 선택 — admin은 항상 PST 고정, 학부모/강사는 변경 가능 */}
+          <div>
+            <Label className="text-gray-700 flex items-center gap-2">
+              <Globe className="h-4 w-4" /> 거주 시간대
+            </Label>
+            {profile.role === 'admin' ? (
+              <div className="mt-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                서부 (Pacific) — 관리자는 PST 고정
+              </div>
+            ) : (
+              <>
+                <select
+                  value={formData.timezone}
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value as SupportedTimezone })}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {SUPPORTED_TIMEZONES.map((tz) => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  관리자는 캘리포니아 PST로 수업을 등록하지만, 본인 화면에는 선택한 시간대로 자동 변환되어 표시됩니다.
+                </p>
+              </>
+            )}
           </div>
 
           <Button

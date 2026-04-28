@@ -3,7 +3,34 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Calendar, Filter, Loader2 } from 'lucide-react';
+import { Filter, Loader2, AlertTriangle } from 'lucide-react';
+
+type AttendanceStatus =
+  | 'scheduled'
+  | 'attended'
+  | 'absent_notified'   // 통보 결석 (사전 알림)
+  | 'no_show'           // 미통보 결석 (노쇼)
+  | 'cancelled'
+  | 'makeup_requested'  // 학부모가 보강 요청 → 강사 슬롯 대기
+  | 'makeup_proposed'   // 강사가 슬롯 제안 → 학부모 승인 대기
+  | 'makeup_scheduled'  // 보강 일정 확정
+  | 'makeup_done'       // 보강 완료 (출석 처리)
+  | 'skipped'           // 결석 후 스킵 (보강 안 함)
+  | 'absent';           // (deprecated, 기존 데이터 호환)
+
+const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
+  scheduled: '예정',
+  attended: '출석',
+  absent_notified: '통보 결석',
+  no_show: '노쇼 (미통보)',
+  cancelled: '취소',
+  makeup_requested: '보강 요청',
+  makeup_proposed: '보강 제안',
+  makeup_scheduled: '보강 확정',
+  makeup_done: '보강 완료',
+  skipped: '스킵',
+  absent: '결석',
+};
 
 interface Lesson {
   id: string;
@@ -12,37 +39,55 @@ interface Lesson {
   lesson_date: string;
   start_time: string;
   end_time: string;
-  attendance: 'scheduled' | 'attended' | 'absent' | 'cancelled';
+  attendance: AttendanceStatus;
   absence_reason: string | null;
   is_billable: boolean;
   is_teacher_payable: boolean;
-  package?: {
+  noshow_admin_approved: boolean;
+  noshow_note: string | null;
+  parent_post_absence_action: 'requested_makeup' | 'skipped' | null;
+  makeup_proposed_date: string | null;
+  makeup_proposed_start: string | null;
+  makeup_proposed_end: string | null;
+  makeup_parent_approved: boolean;
+  packages?: {
     name: string;
     student_id: string;
     teacher_id: string;
-    students?: { name: string };
-    teachers?: { profiles?: { name: string } };
-  };
+    students?: { name: string } | null;
+    teachers?: { profiles?: { name: string } | null } | null;
+  } | null;
   comments?: { status: string }[];
 }
 
 export default function LessonsPage() {
   const router = useRouter();
   const supabase = createClient();
+  const [adminId, setAdminId] = useState<string | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState('');
   const [filterStudent, setFilterStudent] = useState('');
   const [filterTeacher, setFilterTeacher] = useState('');
   const [filterAttendance, setFilterAttendance] = useState('');
-  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
-  const [absenceReason, setAbsenceReason] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
 
+  // 노쇼 승인 모달
+  const [noShowLesson, setNoShowLesson] = useState<Lesson | null>(null);
+  const [noShowBillable, setNoShowBillable] = useState(true);
+  const [noShowPayable, setNoShowPayable] = useState(false);
+  const [noShowNote, setNoShowNote] = useState('');
+
+  // toast
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
     const checkAuthAndFetch = async () => {
-      // Check user role
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -63,6 +108,7 @@ export default function LessonsPage() {
         return;
       }
 
+      setAdminId(user.id);
       await fetchLessons();
       await fetchFilters();
     };
@@ -99,6 +145,13 @@ export default function LessonsPage() {
         absence_reason,
         is_billable,
         is_teacher_payable,
+        noshow_admin_approved,
+        noshow_note,
+        parent_post_absence_action,
+        makeup_proposed_date,
+        makeup_proposed_start,
+        makeup_proposed_end,
+        makeup_parent_approved,
         packages(
           name,
           student_id,
@@ -110,63 +163,109 @@ export default function LessonsPage() {
       `)
       .order('lesson_date', { ascending: false });
 
-    if (!error) {
-      setLessons(data || []);
+    if (error) {
+      console.error('fetchLessons error', error);
+    } else {
+      setLessons((data as any) || []);
     }
     setLoading(false);
   };
 
   const filteredLessons = lessons.filter((lesson) => {
     if (filterDate && lesson.lesson_date !== filterDate) return false;
-    if (filterStudent && lesson.package?.student_id !== filterStudent) return false;
-    if (filterTeacher && lesson.package?.teacher_id !== filterTeacher) return false;
+    if (filterStudent && lesson.packages?.student_id !== filterStudent) return false;
+    if (filterTeacher && lesson.packages?.teacher_id !== filterTeacher) return false;
     if (filterAttendance && lesson.attendance !== filterAttendance) return false;
     return true;
   });
 
+  // 출석 상태 변경 핸들러 — 비즈니스 룰 자동 적용
   const handleAttendanceChange = async (
-    lessonId: string,
-    newStatus: string,
+    lesson: Lesson,
+    newStatus: AttendanceStatus,
   ) => {
+    // 노쇼는 모달 띄우기 (admin이 청구/지급 결정 + 비고 입력)
+    if (newStatus === 'no_show') {
+      setNoShowLesson(lesson);
+      setNoShowBillable(true);
+      setNoShowPayable(false);
+      setNoShowNote('');
+      return;
+    }
+
     const updates: any = { attendance: newStatus };
-    if (newStatus !== 'absent') {
+
+    // 비즈니스 룰 자동 적용
+    if (newStatus === 'attended') {
+      // 출석: 청구·지급 모두 ON
+      updates.is_billable = true;
+      updates.is_teacher_payable = true;
+    } else if (newStatus === 'absent_notified') {
+      // 통보 결석: 청구·지급 모두 OFF (회차 카운트 안 함)
+      updates.is_billable = false;
+      updates.is_teacher_payable = false;
+      updates.noshow_admin_approved = false;
+    } else if (newStatus === 'cancelled' || newStatus === 'skipped') {
+      updates.is_billable = false;
+      updates.is_teacher_payable = false;
+    } else if (newStatus === 'scheduled') {
+      updates.is_billable = true;
+      updates.is_teacher_payable = true;
+    } else if (newStatus === 'makeup_done') {
+      updates.is_billable = true;
+      updates.is_teacher_payable = true;
+    }
+
+    if (newStatus !== 'absent_notified' && newStatus !== 'no_show' && newStatus !== 'absent') {
       updates.absence_reason = null;
     }
 
-    await supabase
+    const { error } = await supabase
       .from('lessons')
       .update(updates)
-      .eq('id', lessonId);
+      .eq('id', lesson.id);
 
-    fetchLessons();
+    if (error) {
+      showToast(`업데이트 실패: ${error.message}`, 'error');
+    } else {
+      showToast(`출석 상태: ${ATTENDANCE_LABEL[newStatus]}`);
+      fetchLessons();
+    }
   };
 
-  const handleAbsenceReason = async (lessonId: string) => {
-    await supabase
-      .from('lessons')
-      .update({ absence_reason: absenceReason })
-      .eq('id', lessonId);
+  // 노쇼 모달 저장
+  const handleNoShowApprove = async () => {
+    if (!noShowLesson || !adminId) return;
 
-    setSelectedLesson(null);
-    setAbsenceReason('');
-    fetchLessons();
+    const { error } = await supabase
+      .from('lessons')
+      .update({
+        attendance: 'no_show',
+        is_billable: noShowBillable,
+        is_teacher_payable: noShowPayable,
+        noshow_admin_approved: true,
+        noshow_approved_by: adminId,
+        noshow_approved_at: new Date().toISOString(),
+        noshow_note: noShowNote || null,
+      })
+      .eq('id', noShowLesson.id);
+
+    if (error) {
+      showToast(`노쇼 승인 실패: ${error.message}`, 'error');
+    } else {
+      showToast(`노쇼 승인 — 청구 ${noShowBillable ? 'O' : 'X'} / 지급 ${noShowPayable ? 'O' : 'X'}`);
+      setNoShowLesson(null);
+      fetchLessons();
+    }
   };
 
   const toggleBillable = async (lessonId: string, current: boolean) => {
-    await supabase
-      .from('lessons')
-      .update({ is_billable: !current })
-      .eq('id', lessonId);
-
+    await supabase.from('lessons').update({ is_billable: !current }).eq('id', lessonId);
     fetchLessons();
   };
 
   const toggleTeacherPayable = async (lessonId: string, current: boolean) => {
-    await supabase
-      .from('lessons')
-      .update({ is_teacher_payable: !current })
-      .eq('id', lessonId);
-
+    await supabase.from('lessons').update({ is_teacher_payable: !current }).eq('id', lessonId);
     fetchLessons();
   };
 
@@ -190,7 +289,13 @@ export default function LessonsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">수업 일정</h1>
+        <div className="flex items-baseline gap-3 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">수업 일정</h1>
+          <span className="text-sm text-gray-500">시간 기준: 캘리포니아 (PST/PDT)</span>
+        </div>
+        <p className="text-sm text-gray-600 mb-8">
+          출석 변경 시 청구·강사 지급은 자동 적용됩니다. 노쇼는 원장 승인 모달에서 케이스별 결정.
+        </p>
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-lg shadow mb-8">
@@ -200,7 +305,7 @@ export default function LessonsPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">날짜</label>
+              <label className="block text-sm font-medium mb-2">날짜 (PST)</label>
               <input
                 type="date"
                 value={filterDate}
@@ -217,9 +322,7 @@ export default function LessonsPage() {
               >
                 <option value="">전체</option>
                 {students.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.name}
-                  </option>
+                  <option key={student.id} value={student.id}>{student.name}</option>
                 ))}
               </select>
             </div>
@@ -248,8 +351,15 @@ export default function LessonsPage() {
                 <option value="">전체</option>
                 <option value="scheduled">예정</option>
                 <option value="attended">출석</option>
-                <option value="absent">결석</option>
+                <option value="absent_notified">통보 결석</option>
+                <option value="no_show">노쇼</option>
                 <option value="cancelled">취소</option>
+                <option value="makeup_requested">보강 요청</option>
+                <option value="makeup_proposed">보강 제안</option>
+                <option value="makeup_scheduled">보강 확정</option>
+                <option value="makeup_done">보강 완료</option>
+                <option value="skipped">스킵</option>
+                <option value="absent">(구) 결석</option>
               </select>
             </div>
           </div>
@@ -264,7 +374,7 @@ export default function LessonsPage() {
                 <th className="px-4 py-3 text-left text-sm font-semibold">학생</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">선생님</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">회차</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">시간</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">시간 (PST)</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">출석</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold">청구</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold">지급</th>
@@ -276,60 +386,52 @@ export default function LessonsPage() {
                 <tr key={lesson.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm">{lesson.lesson_date}</td>
                   <td className="px-4 py-3 text-sm">
-                    {(lesson.package?.students as any)?.name || 'N/A'}
+                    {lesson.packages?.students?.name || 'N/A'}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {(lesson.package?.teachers as any)?.profiles?.name || 'N/A'}
+                    {lesson.packages?.teachers?.profiles?.name || 'N/A'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-center">
-                    {lesson.session_number}
-                  </td>
+                  <td className="px-4 py-3 text-sm text-center">{lesson.session_number}</td>
                   <td className="px-4 py-3 text-sm">
-                    {lesson.start_time} - {lesson.end_time}
+                    {lesson.start_time?.slice(0, 5)} - {lesson.end_time?.slice(0, 5)}
                   </td>
                   <td className="px-4 py-3">
                     <select
                       value={lesson.attendance}
                       onChange={(e) =>
-                        handleAttendanceChange(lesson.id, e.target.value)
+                        handleAttendanceChange(lesson, e.target.value as AttendanceStatus)
                       }
                       className="px-2 py-1 text-sm border border-gray-300 rounded"
                     >
                       <option value="scheduled">예정</option>
                       <option value="attended">출석</option>
-                      <option value="absent">결석</option>
+                      <option value="absent_notified">통보 결석</option>
+                      <option value="no_show">노쇼 (미통보)</option>
                       <option value="cancelled">취소</option>
+                      <option value="makeup_requested">보강 요청</option>
+                      <option value="makeup_proposed">보강 제안</option>
+                      <option value="makeup_scheduled">보강 확정</option>
+                      <option value="makeup_done">보강 완료</option>
+                      <option value="skipped">스킵</option>
+                      {lesson.attendance === 'absent' && (
+                        <option value="absent">결석 (구)</option>
+                      )}
                     </select>
-                    {lesson.attendance === 'absent' && (
-                      <div className="mt-2">
-                        {selectedLesson === lesson.id ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={absenceReason}
-                              onChange={(e) => setAbsenceReason(e.target.value)}
-                              placeholder="결석 사유"
-                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                            />
-                            <button
-                              onClick={() => handleAbsenceReason(lesson.id)}
-                              className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-                            >
-                              저장
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setSelectedLesson(lesson.id);
-                              setAbsenceReason(lesson.absence_reason || '');
-                            }}
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            {lesson.absence_reason || '사유 추가'}
-                          </button>
-                        )}
+                    {lesson.attendance === 'no_show' && lesson.noshow_admin_approved && (
+                      <div className="mt-1 text-xs text-orange-700">
+                        원장 승인 완료
                       </div>
+                    )}
+                    {lesson.attendance === 'no_show' && lesson.noshow_note && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        비고: {lesson.noshow_note}
+                      </div>
+                    )}
+                    {lesson.parent_post_absence_action === 'requested_makeup' && (
+                      <div className="mt-1 text-xs text-blue-600">학부모: 보강 요청</div>
+                    )}
+                    {lesson.parent_post_absence_action === 'skipped' && (
+                      <div className="mt-1 text-xs text-gray-500">학부모: 스킵</div>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -367,6 +469,102 @@ export default function LessonsPage() {
           총 {filteredLessons.length}개 수업
         </div>
       </div>
+
+      {/* 노쇼 승인 모달 */}
+      {noShowLesson && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setNoShowLesson(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle className="text-orange-500 mt-1" size={24} />
+              <div>
+                <h3 className="text-lg font-bold">노쇼(미통보 결석) 처리</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {noShowLesson.packages?.students?.name || '학생'} ·{' '}
+                  {noShowLesson.lesson_date} {noShowLesson.start_time?.slice(0, 5)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  강사: {noShowLesson.packages?.teachers?.profiles?.name || 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-orange-50 border border-orange-200 rounded p-3 mb-4 text-sm text-orange-900">
+              학부모 사전 통보 없이 결석. 원장 판단으로 청구·지급을 결정합니다.
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center justify-between p-3 border rounded cursor-pointer hover:bg-gray-50">
+                <div>
+                  <div className="font-medium text-sm">학부모 수강료 청구</div>
+                  <div className="text-xs text-gray-500">회차 카운트 + 청구 발행</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={noShowBillable}
+                  onChange={(e) => setNoShowBillable(e.target.checked)}
+                  className="w-5 h-5"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-3 border rounded cursor-pointer hover:bg-gray-50">
+                <div>
+                  <div className="font-medium text-sm">강사료 지급</div>
+                  <div className="text-xs text-gray-500">강사 시간 보전 (대기료 등)</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={noShowPayable}
+                  onChange={(e) => setNoShowPayable(e.target.checked)}
+                  className="w-5 h-5"
+                />
+              </label>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">비고 (사유 기록)</label>
+                <textarea
+                  value={noShowNote}
+                  onChange={(e) => setNoShowNote(e.target.value)}
+                  rows={3}
+                  placeholder="예: 30분 대기 후 연락 두절. 차량 사고 사후 통보."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setNoShowLesson(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded font-medium hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleNoShowApprove}
+                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded font-medium hover:bg-orange-600"
+              >
+                원장 승인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg text-white z-50 ${
+            toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
