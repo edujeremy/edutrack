@@ -604,15 +604,22 @@ export default function CalendarPage() {
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        lesson.attendance === 'attended' ? 'bg-green-200 text-green-800' :
-                        lesson.attendance === 'absent' && (lesson as any).absence_type === 'noshow' ? 'bg-orange-200 text-orange-800' :
-                        lesson.attendance === 'absent' ? 'bg-red-200 text-red-800' :
+                        lesson.attendance === 'attended' || (lesson.attendance as string) === 'makeup_done' ? 'bg-green-200 text-green-800' :
+                        (lesson.attendance as string) === 'no_show' ? 'bg-orange-200 text-orange-800' :
+                        (lesson.attendance as string) === 'makeup_requested' || (lesson.attendance as string) === 'makeup_proposed' || (lesson.attendance as string) === 'makeup_scheduled' ? 'bg-amber-200 text-amber-800' :
+                        (lesson.attendance as string) === 'skipped' ? 'bg-gray-200 text-gray-700' :
+                        isAbsentLike(lesson.attendance as any) ? 'bg-red-200 text-red-800' :
                         'bg-blue-200 text-blue-800'
                       }`}>
                         {lesson.attendance === 'attended' ? '출석'
-                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'noshow' ? '노쇼'
-                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'excused' ? '결석'
-                          : lesson.attendance === 'absent' && (lesson as any).absence_type === 'makeup' ? '보강예정'
+                          : (lesson.attendance as string) === 'no_show' ? '노쇼'
+                          : (lesson.attendance as string) === 'absent_notified' ? '통보 결석'
+                          : (lesson.attendance as string) === 'makeup_requested' ? '보강 요청'
+                          : (lesson.attendance as string) === 'makeup_proposed' ? '보강 제안'
+                          : (lesson.attendance as string) === 'makeup_scheduled' ? '보강 확정'
+                          : (lesson.attendance as string) === 'makeup_done' ? '보강 완료'
+                          : (lesson.attendance as string) === 'skipped' ? '스킵'
+                          : (lesson.attendance as string) === 'cancelled' ? '취소'
                           : lesson.attendance === 'absent' ? '결석'
                           : '예정'}
                       </span>

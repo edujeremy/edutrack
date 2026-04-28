@@ -100,30 +100,9 @@ select:disabled {
   @apply text-gray-500;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-  }
-
-  input[type='text'],
-  input[type='email'],
-  input[type='password'],
-  input[type='number'],
-  input[type='date'],
-  input[type='time'],
-  textarea,
-  select {
-    @apply border-gray-600 bg-gray-900 text-white placeholder-gray-400;
-  }
-
-  th {
-    @apply bg-gray-900 text-gray-100;
-  }
-
-  td {
-    @apply border-b border-gray-700;
-  }
+/* Dark mode support — 비활성화 (light theme 강제, 시스템 dark mode일 때 표 색상 깨짐 방지) */
+:root {
+  color-scheme: light only;
 }
 
 /* Utility classes */
