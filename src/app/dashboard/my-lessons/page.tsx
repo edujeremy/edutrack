@@ -297,14 +297,14 @@ export default function MyLessonsPage() {
                         {/* 슬롯 제안 완료 — 학부모 승인 대기 */}
                         {lesson.makeup_proposed_date && !lesson.makeup_parent_approved && (
                           <div className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                            제안: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} — 학부모 승인 대기
+                            제안: {formatLessonTime({ lesson_date: lesson.makeup_proposed_date!, start_time: lesson.makeup_proposed_start || '', end_time: lesson.makeup_proposed_end || '' }).replace(/^/, lesson.makeup_proposed_date + ' ')} — 학부모 승인 대기
                           </div>
                         )}
 
                         {/* 보강 확정 — 학부모 승인 완료 */}
                         {lesson.makeup_parent_approved && lesson.makeup_proposed_date && (
                           <div className="mt-2 text-xs text-amber-800 bg-amber-100 p-2 rounded">
-                            보강 확정: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)}
+                            보강 확정: {lesson.makeup_proposed_date} {formatLessonTime({ lesson_date: lesson.makeup_proposed_date!, start_time: lesson.makeup_proposed_start || '', end_time: lesson.makeup_proposed_end || '' })}
                           </div>
                         )}
 

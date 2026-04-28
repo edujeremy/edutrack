@@ -662,7 +662,20 @@ export default function CalendarPage() {
                       <div className="mt-3 p-3 bg-white rounded-lg border border-amber-300 space-y-2">
                         <p className="text-sm font-bold text-amber-800">강사 보강 제안</p>
                         <p className="text-sm text-gray-700">
-                          {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} ({tzShortLabel(userTimezone)})
+                          {(() => {
+                            const conv = (() => {
+                              try {
+                                if (userTimezone === 'America/Los_Angeles') return null
+                                const a = convertFromPST(lesson.makeup_proposed_date!, lesson.makeup_proposed_start!, userTimezone)
+                                const b = convertFromPST(lesson.makeup_proposed_date!, lesson.makeup_proposed_end!, userTimezone)
+                                return { date: a.date, start: a.time, end: b.time }
+                              } catch { return null }
+                            })()
+                            const dateStr = conv?.date ?? lesson.makeup_proposed_date
+                            const startStr = conv?.start ?? trimTime(lesson.makeup_proposed_start)
+                            const endStr = conv?.end ?? trimTime(lesson.makeup_proposed_end)
+                            return `${dateStr} ${startStr}~${endStr} (${tzShortLabel(userTimezone)})`
+                          })()}
                         </p>
                         <button
                           onClick={() => handleApproveMakeupProposal(lesson.id)}
@@ -677,7 +690,18 @@ export default function CalendarPage() {
                     {lesson.makeup_parent_approved && lesson.makeup_proposed_date && (
                       <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                         <p className="text-sm text-amber-800">
-                          보강 일정 확정: {lesson.makeup_proposed_date} {trimTime(lesson.makeup_proposed_start)}~{trimTime(lesson.makeup_proposed_end)} ({tzShortLabel(userTimezone)})
+                          보강 일정 확정: {(() => {
+                            try {
+                              if (userTimezone === 'America/Los_Angeles') {
+                                return `${lesson.makeup_proposed_date} ${trimTime(lesson.makeup_proposed_start)}~${trimTime(lesson.makeup_proposed_end)} (PT)`
+                              }
+                              const a = convertFromPST(lesson.makeup_proposed_date!, lesson.makeup_proposed_start!, userTimezone)
+                              const b = convertFromPST(lesson.makeup_proposed_date!, lesson.makeup_proposed_end!, userTimezone)
+                              return `${a.date} ${a.time}~${b.time} (${tzShortLabel(userTimezone)})`
+                            } catch {
+                              return `${lesson.makeup_proposed_date} ${trimTime(lesson.makeup_proposed_start)}~${trimTime(lesson.makeup_proposed_end)} (${tzShortLabel(userTimezone)})`
+                            }
+                          })()}
                         </p>
                       </div>
                     )}

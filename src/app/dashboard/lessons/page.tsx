@@ -132,42 +132,52 @@ export default function LessonsPage() {
 
   const fetchLessons = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    // 1단계: lessons 단순 fetch (packages join 없이) — schema cache 영향 최소화
+    const { data: lessonsData, error: lessonsErr } = await supabase
       .from('lessons')
-      .select(`
-        id,
-        package_id,
-        session_number,
-        lesson_date,
-        start_time,
-        end_time,
-        attendance,
-        absence_reason,
-        is_billable,
-        is_teacher_payable,
-        noshow_admin_approved,
-        noshow_note,
-        parent_post_absence_action,
-        makeup_proposed_date,
-        makeup_proposed_start,
-        makeup_proposed_end,
-        makeup_parent_approved,
-        packages(
-          name,
-          student_id,
-          teacher_id,
-          students(name),
-          teachers(profiles(name))
-        ),
-        comments(status)
-      `)
+      .select('id, package_id, session_number, lesson_date, start_time, end_time, attendance, absence_reason, is_billable, is_teacher_payable, noshow_admin_approved, noshow_note, parent_post_absence_action, makeup_proposed_date, makeup_proposed_start, makeup_proposed_end, makeup_parent_approved')
       .order('lesson_date', { ascending: false });
 
-    if (error) {
-      console.error('fetchLessons error', error);
-    } else {
-      setLessons((data as any) || []);
+    if (lessonsErr) {
+      console.error('fetchLessons error', lessonsErr);
+      setLessons([]);
+      setLoading(false);
+      return;
     }
+
+    // 2단계: package_id 기반으로 packages·students·teachers·comments 별도 fetch (안전)
+    const packageIds = Array.from(new Set((lessonsData || []).map((l: any) => l.package_id).filter(Boolean)));
+    const lessonIds = (lessonsData || []).map((l: any) => l.id);
+
+    const [{ data: packagesData }, { data: commentsData }] = await Promise.all([
+      packageIds.length
+        ? supabase.from('packages').select('id, name, student_id, teacher_id, students(name), teachers(profile_id, profiles(name))').in('id', packageIds)
+        : Promise.resolve({ data: [] }),
+      lessonIds.length
+        ? supabase.from('comments').select('lesson_id, status').in('lesson_id', lessonIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const pkgMap = new Map((packagesData || []).map((p: any) => [p.id, p]));
+    const cmtMap = new Map<string, string>();
+    (commentsData || []).forEach((c: any) => cmtMap.set(c.lesson_id, c.status));
+
+    // 합치기
+    const merged: Lesson[] = (lessonsData || []).map((l: any) => {
+      const pkg = pkgMap.get(l.package_id);
+      return {
+        ...l,
+        packages: pkg ? {
+          name: pkg.name,
+          student_id: pkg.student_id,
+          teacher_id: pkg.teacher_id,
+          students: pkg.students,
+          teachers: pkg.teachers,
+        } : null,
+        comments: cmtMap.has(l.id) ? [{ status: cmtMap.get(l.id)! }] : [],
+      };
+    });
+    setLessons(merged);
     setLoading(false);
   };
 
